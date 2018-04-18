@@ -1,0 +1,23 @@
+# This config file contains parameters used by PPL when your project is built.
+# Look at the example assignments below and modify them if needed.
+# Note: Comment lines start with #
+
+# java_exe_options
+# ----------------
+# This parameter defines the 'java' executable options applied when your application is launched.
+# Please refer to Java's official documentation for a full list of options supported.
+# By default no value is assigned to this parameter
+# example:
+# java_exe_options = -Xmx384m -Xss16m
+
+# Windows_run_file_name and Unix_run_file_name
+# --------------------------------------------
+# These parameters define the file names for the Windows and Unix/Linux OS script files that launch your application.
+# If this value is not explicitly set then (by default) the file name is the project identifier suffix (e.g. 'qwe.bat' and 'qwe.sh' for project 'qwe').
+# Note: If you change these values then you must also adapt the file name used inside your system script files located in your project's root directory (e.g. 'run.bat' or 'run.sh').
+# examples:
+# Windows_distribution_run_file_name = my_file_name.bat
+# Unix_distribution_run_file_name = my_file_name.sh
+
+Windows_distribution_run_file_name = sim.bat
+Unix_distribution_run_file_name = sim.sh

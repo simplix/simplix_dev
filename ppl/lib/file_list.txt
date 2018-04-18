@@ -1,0 +1,13 @@
+# This file defines pointers to .par files used in your project
+# Each line represents a pointer to one or more .par files
+# One or more pointer lines can be defined
+# There are 4 syntaxes supported:
+#    1. absolute file
+#       example: file /foo/bar/zar.par
+#    2. relative file (relative to the directory of this configuration file)
+#       example: rel file foo/bar/zar.par
+#    3. absolute directory (all files in the directory and its subdirectories will be used)
+#       example: dir /foo/bar/
+#    4. relative directory (relative to the directory of this configuration file; all files in the directory and its subdirectories will be used)
+#       example: rel dir ../foo/bar/
+# Comment lines start with #
