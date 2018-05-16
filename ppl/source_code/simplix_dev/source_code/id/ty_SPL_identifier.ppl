@@ -1,0 +1,5 @@
+type SPL_identifier
+
+    inherit string_value, has_equal_to<SPL_identifier>
+    
+.

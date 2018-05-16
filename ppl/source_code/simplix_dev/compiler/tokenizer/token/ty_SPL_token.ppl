@@ -1,0 +1,12 @@
+type SPL_token
+
+    attributes
+ 
+     	value string
+    	
+	    line pos_32
+	    column pos_32
+    .
+    
+    // TD function to_string = """{{value}} ({{line}},{{column}})"""
+.

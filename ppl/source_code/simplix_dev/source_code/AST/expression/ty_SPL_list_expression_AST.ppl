@@ -1,0 +1,7 @@
+data type SPL_list_expression_AST
+
+    inherit SPL_expression_AST
+    
+    att elements list<SPL_expression_AST> or null
+    
+.

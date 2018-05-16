@@ -1,0 +1,58 @@
+factory default_SPL_coding_error_handler type:SPL_coding_error_handler
+
+    attributes kind:variable access:private
+        error_count   zero_positive_32 = 0
+        warning_count zero_positive_32 = 0
+    .
+
+    function coding_error
+        error_start
+        OS.err.write_line ( error.to_string )
+        error_end
+    .
+
+    function anticipated_runtime_error
+        error_start
+        OS.err.write_line ( error.to_string )
+        error_end
+    .
+    
+    function error
+        error_start
+        OS.err.write_line ( error )
+        error_end
+    .
+    
+    function warning
+
+        OS.err.write_line ( """Warning: {{warning}}""" )
+        OS.err.write_new_line
+
+        a_warning_count = a_warning_count + 1
+    .
+    
+    function has_errors = a_error_count >= 1
+    
+    function has_warnings = a_warning_count >= 1
+    
+    function error_count = a_error_count
+    
+    function warning_count = a_warning_count
+    
+    functions access:private
+        
+        function error_start
+            // OS.err.write_new_line
+            OS.err.write ( "Error: " )
+            
+            a_error_count = a_error_count + 1
+        .
+
+        function error_end
+            OS.err.write_new_line
+        .
+    .
+    
+    creator create kind:in_all
+
+.

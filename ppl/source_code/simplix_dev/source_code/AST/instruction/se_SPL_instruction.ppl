@@ -1,0 +1,115 @@
+service SPL_instruction
+
+    att default_error_indicator string = " >>> "
+
+    function insert_error_indicator_in_instruction -> string
+        in source_code_instruction string
+        in line pos_32
+        in column pos_32
+        in error_indicator string default: a_default_error_indicator
+
+        script
+            if i_line =v 1 then
+                return insert_error_indicator_in_line (
+                    source_code_line = source_code_instruction
+                    column,
+                    error_indicator )
+            else
+                const r = mutable_string.create
+                repeat for each source_code_line in i_source_code_instruction.split_by_new_line counter:index is_last:is_last
+                    if index =v i_line.to_pos_64 then
+                        assert source_code_line is not null
+                        r.append ( insert_error_indicator_in_line (
+                            source_code_line,
+                            column,
+                            error_indicator ) )
+                    else
+                        r.append_if_not_null ( source_code_line )
+                    .
+                    if not is_last then
+                        r.append_new_line
+                    .
+                .
+                return r.to_string
+            .
+        .
+        tests
+            const source_code_instruction = '''const m = \
+    "Hello " & \
+    "there"'''
+            test source_code_instruction, line = 1, column = 7
+            verify result =v '''const  >>> m = \
+    "Hello " & \
+    "there"'''
+
+            test source_code_instruction, line = 2, column = 14
+            verify result =v '''const m = \
+    "Hello "  >>> & \
+    "there"'''
+
+            test source_code_instruction, line = 3, column = 11
+            verify result =v '''const m = \
+    "Hello " & \
+    "there >>> "'''
+
+            test source_code_instruction, line = 4, column = 1
+            verify result =v '''const m = \
+    "Hello " & \
+    "there"'''
+
+            test source_code_instruction, line = 1, column = 100
+            verify result =v '''const m = \
+    "Hello " & \
+    "there"'''
+        .
+    .
+
+    function insert_error_indicator_in_line -> string
+        in source_code_line string
+        in column pos_32
+        in error_indicator string default: a_default_error_indicator
+        
+        script
+            if column ># i_source_code_line.size then
+                return i_source_code_line
+            .
+            const r = mutable_string.create
+            if i_column ># 1 then
+                r.append ( i_source_code_line.substring_to ( i_column - 1 ) )
+            . 
+            r.append ( i_error_indicator ) 
+            r.append ( i_source_code_line.substring_from ( i_column ) ) 
+            return r.to_string
+        .
+        tests
+            const source_code_line = "const qwe"
+            
+            test source_code_line, column = 7
+            verify result =v "const  >>> qwe"
+            
+            test source_code_line, column = 1
+            verify result =v " >>> const qwe"
+            
+            test source_code_line, column = 9
+            verify result =v "const qw >>> e"
+            
+            test source_code_line, column = 10
+            verify result =v "const qwe"
+            
+            /// TD (new syntax)
+                const source_code_line = "const qwe"
+                set
+                    source_code_line, column = 7 => "const  >>> qwe"
+                    source_code_line, column = 1 => " >>> const qwe"
+                    source_code_line, column = 9 => "const qw >>> e"
+                    source_code_line, column = 10 => "const qwe"
+                    or
+                    "const qwe", 7  => "const  >>> qwe"
+                    "const qwe", 1  => " >>> const qwe"
+                    "const qwe", 9  => "const qw >>> e"
+                    "const qwe", 10 => "const qwe"
+                .
+            .///
+        .
+    .
+.

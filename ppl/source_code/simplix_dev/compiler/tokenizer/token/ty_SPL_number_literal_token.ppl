@@ -1,0 +1,6 @@
+type SPL_number_literal_token
+
+    inherit SPL_token
+    
+    att has_decimal_point yes_no
+.

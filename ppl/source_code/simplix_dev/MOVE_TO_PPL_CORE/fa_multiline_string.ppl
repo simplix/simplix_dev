@@ -1,0 +1,86 @@
+factory multiline_string
+
+    att string string access:private
+
+    functions
+
+        line_stream
+            return stream<string or null>.create_from_iterator ( string_line_iterator.create ( a_string ) )
+        .
+        
+        sub_lines
+            const r = mutable_string.create
+            line_stream. \
+                maybe_skip ( from_line - 1L ). \
+                take ( to_line - from_line + 1L ). \
+                for_each ( { line ->
+                    r.append_if_not_null ( line )
+                    r.append_new_line
+                } )
+            r.remove_last_new_line
+
+            if r.is_empty then
+                return null
+            else
+                return multiline_string.create_from_string ( r.to_string )
+            .
+        .
+        
+        function trim_left_indent
+            
+            const regex_match_result = a_string.starts_with_regex_match_at_position (
+                regex = regex.create ( "[ \t]+" )
+                position = 1 )
+            if regex_match_result is null then
+                return this
+            .
+            
+            const first_line_indent = regex_match_result.found
+            const r = mutable_string.create
+            line_stream.for_each ( { line ->
+                if line is not null then
+                    if line.starts_with ( first_line_indent ) then
+                        if line.remove_to ( first_line_indent.size ) as new_line is not null then
+                            r.append ( new_line )
+                        .
+                    else
+                        r.append ( line )
+                    .
+                .
+                r.append_new_line
+            } )
+            r.remove_last_new_line
+            
+            if r.is_empty then
+                return null
+            else
+                return multiline_string.create_from_string ( r.to_string )
+            .
+        .
+        
+        
+        ///
+   l1
+   l2
+
+   l1
+      l2
+   
+   l1
+l2
+   
+l1
+   l2
+
+        .///
+        
+        function to_string = a_string
+    .
+
+    creator create_from_string ( string ) -> multiline_string
+        
+        this.string = i_string
+        return this
+    .
+    
+.

@@ -1,0 +1,36 @@
+factory SPL_identifier_path
+
+    function is_equal_to = a_value =v i_other.value
+
+    function to_string = a_value
+
+
+    creator create kind:in_all
+    
+    creator create_from_id ( id SPL_identifier ) -> SPL_identifier_path
+        
+        this.value = id.value
+        return this
+    .
+    
+    // TD error handling
+    creator create_from_relative_directory_path ( relative_directory_path ) -> SPL_identifier_path
+        
+        variable value = i_relative_directory_path.value \
+            .replace_all (
+                to_replace = se_directory_constants.Unix_directory_separator
+                replace_by = "." ) \
+            .replace_all (
+                to_replace = se_directory_constants.Windows_directory_separator
+                replace_by = "." )
+
+        if value.ends_with ( "." ) then
+            value = value.remove_last
+        .
+        
+        this.value = value
+
+        return this
+    .
+.
+      

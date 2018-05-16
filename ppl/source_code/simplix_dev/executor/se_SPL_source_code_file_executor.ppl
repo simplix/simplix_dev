@@ -1,0 +1,95 @@
+service SPL_source_code_file_executor
+
+    function try_run_application_source_code_file_path_and_wait ( absolute_or_relative_path string ) \
+        -> signed_integer_32 or anticipated_runtime_error
+
+        case type of file.try_parse_absolute_or_relative_path_in_working_directory ( i_absolute_or_relative_path )
+            when file file
+                return try_run_application_source_code_file_and_wait ( file )
+            when string_to_object_parsing_error<*> e
+                return e
+        .
+    .
+    
+    function try_run_application_source_code_file_and_wait ( file ) \
+        -> signed_integer_32 or anticipated_runtime_error
+
+        // file must exist
+        if not file.exists then
+            return invalid_data_error<file>.create (
+                description = """File '{{file.to_string}}' doesn't exist"""
+                data = file )
+        .
+        
+        // file extension must be correct
+        variable extension_error yes_no
+        if file.name.extension as extension is null then
+            extension_error = yes
+        else
+            extension_error = extension #v se_SPL_constants.source_code_file_extension
+        .
+        if extension_error then
+            return invalid_data_error<file>.create (
+                description =  """'{{file.to_string}}' is not a source code file. Source code files must have extension {{se_SPL_constants.source_code_file_extension}}."""
+                data = file )
+        .
+
+        // file must be in source code directory
+        const directory_name = file.directory.name
+        if directory_name #v se_SPL_constants.source_code_directory_name then
+            return invalid_data_error<file>.create (
+                description = """A source code file to execute must be located in a directory with name '{{se_SPL_constants.source_code_directory_name}}'. But file '{{file.to_string}}' is located in directory '{{directory_name}}'."""
+                data = file )
+        .
+        
+        const root_directory = file.directory.parent_directory
+        if root_directory is null then
+            return invalid_data_error<file>.create (
+                description = """Directory '{{se_SPL_constants.source_code_directory_name}}' must have a parent directory."""
+                data = file )
+        .
+        
+        return try_run_application ( root_directory, start_source_code_file = file )
+    .
+    
+    function try_run_application ( root_directory directory, start_source_code_file file ) \
+        -> signed_integer_32 or anticipated_runtime_error
+    
+        const start_module_id = SPL_identifier.try_create_from_file_name ( start_source_code_file.name ) on_error:return_error
+
+        const application = SPL_application.create ( root_directory, start_module_id )
+        
+        if not ( application.try_compile and application.try_build ) then
+            return IO_error.create ( description = "Application could not be compiled and built." )
+        .
+        
+        return application.try_run_and_wait
+    .
+
+    // TODO transfer to service Java_application_launcher
+    
+    function try_run_jar_file_and_wait -> signed_integer_32 or OS_process_error
+        %existing_file_input_argument_2<jar_file>
+    
+//        environment_variables map<key:string, value:string or null> or null default:null
+//        working_directory directory or null default:null
+
+        return se_OS_command_executor.try_run_process_and_wait ( OS_command_config_for_jar_file ( i_jar_file ) )
+    .
+
+    function try_start_jar_file_and_continue -> OS_process_error or null
+        %existing_file_input_argument_2<jar_file>
+    
+        return se_OS_command_executor.try_start_process_and_continue ( OS_command_config_for_jar_file ( i_jar_file ) )
+    .
+
+    functions access:private
+        
+        function OS_command_config_for_jar_file ( jar_file file ) -> OS_command_config
+        
+            return OS_command_config.create (
+                command_tokens = [ "java.exe", "-jar", i_jar_file.to_string ] )
+        .
+    .
+
+.

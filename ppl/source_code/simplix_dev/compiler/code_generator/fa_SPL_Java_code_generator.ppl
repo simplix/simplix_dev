@@ -1,0 +1,369 @@
+factory SPL_Java_code_generator type:SPL_code_generator
+
+    attributes access:private
+        att helper SPL_Java_code_generator_helper = SPL_Java_code_generator_helper.create
+        variable att temp_var_index pos_32 = 1
+    .
+
+    function generate_code
+    
+        repeat for each module in repository.module_iterator
+        
+            const error = a_helper.start_of_module (
+                i_target_code_directory,
+                library_path = module.library_path
+                module_id = module.id )
+            if error is not null then
+                i_error_handler.anticipated_runtime_error ( error )
+                return no
+            .
+
+            generate_module ( module )
+            
+            a_helper.end_of_module
+        .
+        
+        return yes
+    .
+    
+    functions access:private
+        
+        generate_module ( module SPL_module )
+        
+            if module.library_path as library_path is not null then
+                append_line ( """package {{library_path}};""" ) 
+                append_new_line
+            .
+        
+            append_line ( "import java.util.ArrayList;" ) 
+            append_line ( "import java.util.Arrays;" ) 
+            append_line ( "import java.util.List;" ) 
+
+            // TD
+            const package = se_SPL_code_generator_constants.core_package_name
+            append_line ( """import {{package}}.data.*;""" )
+            append_line ( """import {{package}}.date_time.*;""" )
+            append_line ( """import {{package}}.files.*;""" )
+            append_line ( """import {{package}}.gui.*;""" )
+            append_line ( """import {{package}}.os.*;""" )
+
+            append_new_line
+
+            const module_AST = module.AST
+            assert module_AST is not null
+            
+            if module_AST.java_header?.java_code as java_code is not null then
+                append_line ( java_code ) 
+                append_new_line
+            .
+
+            append_line ( """public class {{se_SPL_code_generator_constants.module_prefix}}{{module.id}} {""" ) 
+            append_new_line
+            add_indent
+            
+            if module_AST.functions as functions is not null then
+                repeat for each function in functions
+                    a_temp_var_index = 1
+                    append_function ( function )
+                .
+            .
+
+            remove_indent
+            append_line ( "}" )
+        .
+        
+        append_function ( function SPL_function_AST )
+        
+            append_indent
+            append ( "public static " )
+
+            if function.output_argument is null then
+                append ( "void " )
+            else
+                append ( "List<Object> " )
+            .
+
+            append ( """{{function.id.value}} (""" )
+            
+            if function.input_arguments as input_arguments is not null then
+                repeat for each input_argument in input_arguments is_first:is_first
+                    if not is_first then
+                        append ( ", " )
+                    .
+                    append ( """List<Object> {{input_argument.value}}""" )
+                .
+            .
+            
+            append ( ") {" )
+            append_new_line 
+            
+            append_instructions ( function.instructions )
+            
+            append_line ( "}" )
+            append_empty_line
+            
+            if function.id.value =v se_SPL_constants.start_function_id.value then
+                append_Java_main_method
+            .
+        .
+        
+        append_Java_main_method
+
+            append_line ( """public static void main (String[] args) {""" ) 
+            
+            add_indent
+                append_line ( se_SPL_code_generator_constants.save_process_args_statement )
+                append_line ( "start();" )
+                // append_line ( "System.exit(0);" )
+            remove_indent
+            
+            append_line ( "}" )
+            append_empty_line
+        .
+        
+        append_instructions ( instructions list<SPL_instruction_AST> or null )
+        
+            if instructions is null then
+                return
+            .
+            
+            add_indent
+            repeat for each instruction in instructions
+                append_instruction ( instruction )
+            .
+            remove_indent
+        .
+        
+        append_instruction ( instruction SPL_instruction_AST )
+        
+            case type of instruction
+                when SPL_constant_instruction_AST i
+                    append_constant_instruction ( i )
+                when SPL_variable_instruction_AST i
+                    append_variable_instruction ( i )
+                when SPL_assignment_instruction_AST i
+                    append_assignment_instruction ( i )
+                when SPL_if_instruction_AST i
+                    append_if_instruction ( i )
+                when SPL_repeat_for_each_instruction_AST i
+                    append_repeat_for_each_instruction ( i )
+                when SPL_function_call_instruction_AST i
+                    append_function_call_instruction ( i )
+                when SPL_return_instruction_AST i
+                    append_return_instruction ( i )
+                when SPL_java_instruction_AST i
+                    append_java_instruction ( i )
+            .
+        .
+        
+        append_constant_instruction ( instruction SPL_constant_instruction_AST )
+        
+            // final type id = exp;
+            append_indent
+            append ( """final List<Object> {{instruction.id.value}} = """ )
+            append_expression ( instruction.expression )
+            append ( ";" )
+            append_new_line
+        .
+        
+        append_variable_instruction ( instruction SPL_variable_instruction_AST )
+        
+            // type id = exp;
+            append_indent
+            append ( """List<Object> {{instruction.id.value}} = """ )
+            append_expression ( instruction.expression )
+            append ( ";" )
+            append_new_line
+        .
+        
+        append_assignment_instruction ( instruction SPL_assignment_instruction_AST )
+        
+            // id = exp;
+            append_indent
+            append ( """{{instruction.id.value}} = """ )
+            append_expression ( instruction.expression )
+            append ( ";" )
+            append_new_line
+        .
+        
+        append_if_instruction ( if_instruction SPL_if_instruction_AST )
+
+            append_indent
+            append ( "if (" )
+            if if_instruction.negated then
+                append ( " ! " )
+            .
+            append ( "Conversions.listToBoolean(" )
+            append_expression ( if_instruction.expression )
+            append ( ")) {" )
+            append_new_line
+            
+            append_instructions ( if_instruction.then_instructions )
+            
+            if if_instruction.else_instructions as else_instructions is not null then
+                append_line ( "} else {" )
+                append_instructions ( else_instructions )
+            .
+
+            append_line ( "}" )
+        .
+        
+        append_repeat_for_each_instruction ( instruction SPL_repeat_for_each_instruction_AST )
+        
+            ///
+                for ( Object _tx:exp ) {
+                    List<Object> id = Conversions.listElementToList(_tx);
+                }
+            .///
+            append_indent
+            const temp_var = get_new_temp_var
+            append ( "for ( Object " )
+            append ( temp_var )
+            append ( ": " )
+            append_expression ( instruction.expression )
+            append ( ") {" )
+            append_new_line
+
+            append_indent
+            append ( "    List<Object> " )
+            append ( instruction.element_id.value )
+            append ( " = Conversions.listElementToList(" )
+            append ( temp_var )
+            append ( ");" )
+            append_new_line
+            
+            append_instructions ( instruction.instructions )
+            
+            append_line ( "}" )
+        .
+        
+        append_function_call_instruction ( instruction SPL_function_call_instruction_AST )
+            
+            append_indent
+            append_function_call ( instruction.function_call )
+            append ( ";" )
+            append_new_line
+        .
+        
+        append_function_call ( function_call SPL_function_call_AST )
+
+            if function_call.module_id as module_id is not null then
+                append ( """{{se_SPL_code_generator_constants.module_prefix}}{{module_id.value}}.""" )
+            .
+            append ( """{{function_call.function_id.value}}(""" )
+            
+            if i_function_call.input as input is not null then
+                repeat for each expression in input is_first:is_first
+                    if not is_first then
+                        append ( ", " )
+                    .
+                    append_expression ( expression )
+                .
+            .
+            
+            append ( ")" )
+        .
+        
+        append_return_instruction ( instruction SPL_return_instruction_AST )
+
+            append_indent
+            append ( "return" )
+            if instruction.expression as expression is not null then
+                append ( " " )
+                append_expression ( expression )
+            .
+            append ( ";" )
+            append_new_line
+        .
+        
+        append_java_instruction ( instruction SPL_java_instruction_AST )
+        
+            if instruction.java_code as java_code is not null then
+                append ( java_code )
+            .
+        .
+        
+        append_expression ( expression SPL_expression_AST )
+            
+            append_expression_2 ( expression, is_list_element = no )
+        .
+        
+        append_expression_2 ( expression SPL_expression_AST, is_list_element yes_no )
+        
+            case type of expression
+                when SPL_const_or_var_expression_AST cv
+                    append ( cv.id.value )
+                when SPL_string_expression_AST se
+                    if i_is_list_element then
+                        append ( se.token.value )
+                    else
+                        append ( """Conversions.stringToList({{se.token.value}})""" )
+                    .
+                when SPL_number_expression_AST ne
+                    if i_is_list_element then
+                        append ( """"{{ne.token.value}}"""" )
+                    else
+                        append ( """Conversions.stringToList("{{ne.token.value}}")""" )
+                    .
+                when SPL_function_call_expression_AST fc
+                    append_function_call ( fc.function_call )
+                when SPL_list_expression_AST le
+                    append_list_expression ( le )
+            .
+        .
+        
+        append_list_expression ( expression SPL_list_expression_AST )
+            
+            append ( "new ArrayList<Object>()" )
+            
+            if expression.elements as elements is not null then
+                append ( "{{" )
+                repeat for each element in elements is_first:is_first
+                    append ( "add(" )
+                    append_expression_2 ( expression = element, is_list_element = yes )
+                    append ( ");" )
+                .
+                append ( "}}" )
+            .
+        .
+        
+        get_new_temp_var -> string
+        
+            const r = """_t{{a_temp_var_index}}"""
+            a_temp_var_index = a_temp_var_index + 1
+            return r
+        .
+        
+        //
+                
+        append ( string )
+            a_helper.append ( string )
+        .
+        
+        append_line ( string )
+            a_helper.append_line ( string )
+        .
+        
+        append_new_line
+            a_helper.append_empty_line
+        .
+
+        append_empty_line
+            a_helper.append_empty_line
+        .
+        
+        append_indent
+            a_helper.append_indent
+        .
+        
+        add_indent
+            a_helper.add_indent
+        .
+        
+        remove_indent
+            a_helper.remove_indent
+        .
+    .
+    
+    creator create kind:in_all
+.

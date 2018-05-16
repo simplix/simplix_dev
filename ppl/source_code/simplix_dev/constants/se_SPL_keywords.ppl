@@ -1,0 +1,20 @@
+service SPL_keywords
+
+    attributes type:string
+    
+        const         = "const"
+        each          = "each"
+        else          = "else"
+        for           = "for"
+        function      = "function"
+        if            = "if"
+        in            = "in"
+        a_java        = "java"
+        a_java_header = "java_header"
+        not           = "not"
+        repeat        = "repeat"
+        return        = "return"
+        then          = "then"
+        var           = "var"
+    .
+.

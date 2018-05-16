@@ -1,0 +1,11 @@
+type SPL_parser
+
+    function parse_module -> SPL_module_AST or null
+        in source_code string
+        in library_path SPL_identifier_path or null
+        in module_id SPL_identifier
+        in error_handler SPL_coding_error_handler
+    .
+
+.
+    

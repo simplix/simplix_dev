@@ -1,0 +1,9 @@
+service SPL_code_generator_constants
+
+    attributes type:string
+        module_prefix = "se_"
+        core_package_name = "org.simplix.core"
+        save_process_args_statement = """{{a_core_package_name}}.os.{{module_prefix}}process.save_process_args(args);"""
+    .
+    
+.

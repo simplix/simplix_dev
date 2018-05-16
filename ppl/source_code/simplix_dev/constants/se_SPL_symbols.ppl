@@ -1,0 +1,20 @@
+service SPL_symbols
+
+	attributes type:string
+		opening_parenthesis    = "("
+		closing_parenthesis    = ")"
+		opening_square_bracket = "["
+		closing_square_bracket = "]"
+		equal_sign             = "="
+		dot                    = "."
+		comma                  = ","
+		backslash              = '''\'''
+		
+		input_output_separator = "->"
+		
+		single_line_comment_start   = "//"
+		single_line_comment_start_2 = "#"
+		multi_line_comment_start    = "///"
+		multi_line_comment_end      = ".///"
+    .
+.

@@ -1,0 +1,10 @@
+type SPL_Java_compiler
+
+    function compile -> yes_no
+        %existing_directory_input_argument_2<java_files_directory>
+        in class_files_directory directory
+        in Java_lib_directory directory
+	    in error_handler SPL_coding_error_handler
+    .
+
+.

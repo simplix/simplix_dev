@@ -1,0 +1,6 @@
+type SPL_new_lines_token
+
+    inherit SPL_token
+    
+    att num_lines pos_32
+.

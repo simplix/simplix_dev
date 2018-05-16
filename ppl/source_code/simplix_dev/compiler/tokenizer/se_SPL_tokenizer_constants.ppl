@@ -1,0 +1,15 @@
+service SPL_tokenizer_constants
+
+    attributes type:regex
+        white_space_regex = regex.create ( '''[ \t]+''' )
+        
+        id_regex = regex.create ( "[a-zA-Z][a-zA-Z0-9_]*" )
+//        string_literal_regex = regex.create ( '''"([^"\\\r\n]|\\[^\r\n]+)*"''' )
+        string_literal_regex = regex.create ( '''"([^"\\\r\n]|\\[^\r\n])*"''' )
+        signed_integer_number_literal_regex = regex.create ( "[+-]?[0-9_]+" )
+        unsigned_integer_number_literal_regex = regex.create ( "[0-9_]+" )
+        
+        att java_code_start_regex = regex.create_with_multiline_mode ( '''(java[a-z_]*)[ \t]*$''' )
+    .
+  
+.

@@ -1,0 +1,7 @@
+data type SPL_module_AST
+
+    att java_header SPL_java_token or null
+
+    att functions map<key:SPL_identifier, value:SPL_function_AST> or null
+
+.

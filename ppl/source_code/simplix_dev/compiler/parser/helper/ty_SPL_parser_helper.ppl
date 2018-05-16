@@ -1,0 +1,63 @@
+type SPL_parser_helper
+
+    functions
+        
+        initialize
+            in source_code string
+            in library_path SPL_identifier_path or null
+            in module_id SPL_identifier
+            in error_handler SPL_coding_error_handler
+        .
+        
+        
+        // instruction
+        
+        current_instruction -> SPL_instruction_AST or null
+    
+        advance_instruction -> SPL_instruction_AST or null
+        
+        require_end_of_instruction -> yes_no
+        
+        
+        // token
+    
+        current_token -> SPL_token or null
+        
+        advance_token -> SPL_token or null
+        
+        peek_next_token_value -> string or null
+        
+
+        // is
+    
+        // is_current_token_value ( value string ) -> yes_no
+        
+        is_on_symbol ( string ) -> yes_no
+        
+        is_on_keyword ( string ) -> yes_no
+
+        // accept
+    
+        accept_token_value ( string ) -> SPL_token or null
+        
+        accept_id_token -> SPL_id_token or null
+        
+        accept_symbol ( string ) -> yes_no
+
+//        accept_current_token -> SPL_token or null
+        
+
+        // require
+        
+        require_token_value ( string ) -> SPL_token or null
+        
+        require_id_token -> SPL_id_token or null
+        
+        require_symbol ( string ) -> yes_no
+
+        
+        // errors
+    
+        report_error ( message string )
+    .
+.

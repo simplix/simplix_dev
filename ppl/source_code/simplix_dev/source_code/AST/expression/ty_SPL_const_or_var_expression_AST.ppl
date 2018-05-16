@@ -1,0 +1,7 @@
+data type SPL_const_or_var_expression_AST
+
+    inherit SPL_expression_AST
+    
+    att id SPL_id_token
+    
+.

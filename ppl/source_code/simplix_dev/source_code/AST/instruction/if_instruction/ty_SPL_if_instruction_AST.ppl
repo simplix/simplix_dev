@@ -1,0 +1,11 @@
+type SPL_if_instruction_AST
+
+    inherit SPL_instruction_AST
+    
+    att negated yes_no
+    att expression SPL_expression_AST
+    att then_instructions list<SPL_instruction_AST> or null
+    att else_ifs list<SPL_else_if_AST> or null
+    att else_instructions list<SPL_instruction_AST> or null
+    
+.

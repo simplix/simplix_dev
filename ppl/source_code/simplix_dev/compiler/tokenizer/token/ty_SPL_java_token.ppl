@@ -1,0 +1,12 @@
+type SPL_java_token
+    
+    inherit SPL_token
+    
+    att java_keyword string
+    
+    att java_code_start_pos pos_32
+    att java_code_end_pos pos_32
+    
+    function java_code -> string or null
+    
+.

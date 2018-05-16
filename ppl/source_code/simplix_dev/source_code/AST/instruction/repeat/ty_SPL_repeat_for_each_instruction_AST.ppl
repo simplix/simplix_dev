@@ -1,0 +1,9 @@
+type SPL_repeat_for_each_instruction_AST
+
+    inherit SPL_instruction_AST
+
+    att element_id SPL_id_token
+    att expression SPL_expression_AST
+    att instructions list<SPL_instruction_AST> or null
+    
+.

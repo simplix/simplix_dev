@@ -1,0 +1,10 @@
+type SPL_compiler
+
+    function compile_directory -> yes_no
+        %existing_directory_input_argument_2<source_code_directory>
+        in start_module_id SPL_identifier
+        in java_files_directory directory
+	    in error_handler SPL_coding_error_handler
+    .
+
+.

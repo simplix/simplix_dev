@@ -1,0 +1,95 @@
+factory SPL_Java_code_generator_helper
+
+    attributes access:private
+    
+        current_indent mutable_string = mutable_string.create
+        variable att writer throwing_string_writer_wrapper = throwing_string_writer_wrapper.create ( memory_string_writer.create )
+    .
+    
+    function start_of_module
+    
+        a_current_indent.remove_all
+
+        const file = define_file ( target_code_directory, library_path, module_id )
+
+        file.directory.try_create_path_if_not_exists on_error: return_error
+        const w = text_file_writer.create_for_new_or_existing_file (
+            file, append_mode = no, auto_flush_after_new_line = no ) on_error: return_error
+        a_writer = throwing_string_writer_wrapper.create ( w )
+        
+        return null
+    .
+
+    function append
+
+        a_writer.write ( string )
+    .
+    
+    function append_line
+        
+        append_indent
+            
+        a_writer.write_line ( string )
+    .
+    
+    function append_empty_line
+
+        a_writer.write_new_line
+    .
+    
+    function append_indent
+        if not a_current_indent.is_empty then
+            a_writer.write ( a_current_indent.to_string )
+        .
+    .
+    
+    function add_indent
+
+        a_current_indent.append ( "    " )
+    .
+    
+    function remove_indent
+
+        if a_current_indent.is_empty then
+            error "remove_indent"
+        else
+            a_current_indent.remove_from_to ( from = 1, to = 4 )
+        .
+    .
+    
+    function end_of_module
+
+        const error = a_writer.try_close
+        assert error is null
+    .
+
+    functions access:private
+
+        function define_file -> file
+            in target_code_directory directory
+            in library_path SPL_identifier_path or null
+            in module_id SPL_identifier
+            
+            const path = mutable_string.create
+            path.append ( i_target_code_directory.to_string )
+            path.append ( se_directory_constants.current_OS_directory_separator )
+            
+            if i_library_path is not null then
+                path.append ( library_path.value.replace_all (
+                    to_replace = "."
+                    replace_by = se_directory_constants.current_OS_directory_separator ) )
+                path.append ( se_directory_constants.current_OS_directory_separator )
+            .
+    
+            path.append ( se_SPL_code_generator_constants.module_prefix )
+            path.append ( i_module_id.value )
+            path.append ( ".java" )
+            
+            return file.create ( file_path.create ( path.to_string ) )
+        .
+    
+    .
+
+    creator create kind:in_all
+    
+.

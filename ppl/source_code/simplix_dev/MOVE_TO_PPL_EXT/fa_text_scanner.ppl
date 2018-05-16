@@ -1,0 +1,399 @@
+factory text_scanner type:text_scanner
+
+	attributes kind:variable private:yes
+		current_position pos_32 or null // points to null if scanning finished
+		total_size pos_32
+	.
+
+	function has_more = a_current_position #r null
+	
+	function current_position = a_current_position
+
+	function current_character
+	
+	    if a_current_position is not null then
+	        return a_string_to_scan.get ( a_current_position )
+        else
+            return null
+        .
+    .
+
+	function remaining_string_to_scan
+
+	    if a_current_position is not null then
+	        return a_string_to_scan.substring_from ( a_current_position )
+        else
+            return null
+        .
+    .
+	
+	
+	// is_at
+
+	function is_at_character
+
+	    if current_character as current_char is not null then
+	        return current_char =v i_character
+        else
+            return no
+        .
+    .
+
+	function is_at_string
+        
+        if a_current_position is not null then
+            return a_string_to_scan.starts_with_at_position ( 
+                start = i_string
+                position = a_current_position )
+        else
+            return no
+        .
+    .
+
+	function is_at_regex
+        
+        if a_current_position is not null then
+            return a_string_to_scan.starts_with_regex_at_position ( 
+                regex,
+                position = a_current_position )
+        else
+            return no
+        .
+    .
+    
+    function is_at_regex_with_result
+        
+        if a_current_position is not null then
+            return a_string_to_scan.starts_with_regex_match_at_position ( 
+                regex,
+                position = a_current_position )
+        else
+            return null
+        .
+    .
+
+	function is_at_start_of_line
+        
+        if a_current_position is not null then
+            return a_current_position =v 1 or a_string_to_scan.get ( a_current_position - 1 ) =v '\n'
+        else
+            return no
+        .
+    .
+
+	function is_at_CR_or_LF
+        
+        if a_current_position is not null then
+    		const char = current_character
+    		assert char is not null
+            return char =v '\r' or char =v '\n'
+        else
+            return no
+        .
+    .
+    
+    
+    // skip
+
+	function skip_current_character
+	
+	    if a_current_position is not null then
+    		advance ( 1 )
+    		return yes
+        else
+            return no
+        .
+	.
+
+	function skip_character
+	
+        if is_at_character ( i_character ) then
+			advance ( 1 )
+			return yes
+		else
+			return no
+		.
+	.
+
+	function skip_string
+	
+		if is_at_string ( i_string )
+			advance ( i_string.size )
+			return yes
+		else
+			return no
+		.
+	.
+
+	function skip_regex = consume_regex ( i_regex ) #r null
+	
+	function skip_single_new_line = consume_single_new_line #r null
+	
+	function skip_space_or_tab_lines = consume_space_or_tab_lines.num_lines
+	
+	function skip_remaining
+	    
+	    if a_current_position is not null then
+    	    a_current_position = null
+    	    return yes
+        else
+	        return no
+        .
+	.
+	
+	
+	// consume
+
+	function consume_current_character
+	
+		const r = current_character
+		if r is not null then
+    		advance ( 1 )
+        .
+		return r
+	.
+
+	function consume_regex
+	
+	    if consume_regex_with_match_result ( i_regex ) as match_result is not null then
+	        return match_result.found
+        else
+            return null
+        .
+    .
+    
+    function consume_regex_with_match_result
+	
+        if a_current_position is not null then
+            const match_result = a_string_to_scan.starts_with_regex_match_at_position ( 
+                regex,
+                position = a_current_position )
+    
+            if match_result is not null
+                advance ( match_result.found.size )
+            .
+            
+            return match_result
+        else
+            return null
+        .
+    .
+	
+	function consume_single_new_line
+	
+	    if skip_string ( se_string_constants.Windows_new_line ) then
+	        return se_string_constants.Windows_new_line
+        else if skip_character ( se_character_constants.line_feed ) then
+            return se_string_constants.Unix_new_line
+        else
+            return null
+        .
+	.
+	
+	function consume_space_or_tab_lines
+	
+	    const result = mutable_string.create
+	    variable num_lines = 0L
+	    repeat forever
+	        if consume_regex ( se_text_scanner_constants.space_or_tab_line_regex ) as space_or_tab_line is not null then
+	            result.append ( space_or_tab_line )
+	            num_lines = num_lines + 1L
+            else
+                exit repeat
+            .
+        .
+
+        if consume_regex ( se_text_scanner_constants.space_or_tab_EOF_regex ) as white_space is not null then
+            result.append ( white_space )
+        .
+
+        return result = result.to_string_or_null, num_lines
+	.
+	
+	function consume_remaining
+	
+	    const r = remaining_string_to_scan
+        a_current_position = null
+        return r
+	.
+	
+	
+	// consume_all_including
+
+	function consume_all_to_character_including = consume_all_to_string_including ( i_character.to_string )
+
+	function consume_all_to_string_including
+	
+        if a_current_position is not null then
+            const find_position = a_string_to_scan.find_first_from (
+                to_find = i_string
+                from = a_current_position )
+    
+            if find_position is not null then
+                const r =  a_string_to_scan.substring (
+                    from = a_current_position
+                    to = find_position + i_string.size - 1 )
+                advance ( r.size )
+                return r
+            else
+                return null
+            .
+        else
+            return null
+        .
+	.
+
+	function consume_all_to_regex_including
+	
+        if a_current_position is not null then
+            const string_find_result = a_string_to_scan.find_first_regex_from ( 
+                regex = i_regex
+                from = a_current_position )
+    
+            if string_find_result is not null then
+                const r = a_string_to_scan.substring (
+                    from = a_current_position
+                    to = string_find_result.end_index )
+                advance ( r.size )
+                return r
+            else
+                return null
+            .
+        else
+            return null
+        .
+	.
+
+	function consume_all_to_new_line_including = \
+	    consume_all_to_regex_including ( se_text_scanner_constants.portable_new_line_regex )
+
+    // consume_all_excluding
+        
+	function consume_all_to_character_excluding = consume_all_to_string_excluding ( i_character.to_string )
+
+	function consume_all_to_string_excluding
+	
+        if a_current_position is not null then
+            const find_position = a_string_to_scan.find_first_from (
+                to_find = i_string
+                from = a_current_position )
+    
+            if find_position is not null then
+                if find_position ># a_current_position then
+                    const r = a_string_to_scan.substring (
+                        from = a_current_position
+                        to = find_position - 1 )
+                    advance ( r.size )
+                    return r
+                .
+            .
+            return null
+        else
+            return null
+        .
+	.
+
+	function consume_all_to_regex_excluding
+	
+        if a_current_position is not null then
+            const string_find_result = a_string_to_scan.find_first_regex_from ( 
+                regex = i_regex
+                from = a_current_position )
+    
+            if string_find_result is not null then
+                if string_find_result.start_index ># a_current_position then
+                    const r = a_string_to_scan.substring (
+                        from = a_current_position
+                        to = string_find_result.start_index - 1 )
+                    advance ( r.size )
+                    return r
+                .
+            .
+            return null
+        else
+            return null
+        .
+	.
+	
+	function consume_all_to_new_line_excluding = \
+	    consume_all_to_regex_excluding ( se_text_scanner_constants.portable_new_line_regex )
+
+
+	functions access:private
+	
+    	function advance ( num_characters pos_32 )
+
+            assert a_current_position is not null
+			a_current_position = a_current_position + i_num_characters
+
+			if a_current_position ># a_total_size then
+				a_current_position = null
+			.
+		.
+	.
+
+
+	creator create kind:in_all
+        
+        this.string_to_scan = i_string_to_scan
+        
+        this.current_position = 1
+        this.total_size = i_string_to_scan.size
+        
+        return this
+    .
+
+	test
+		const s = text_scanner.create ( "12abAB_1_+-?" )
+
+        variable pos = s.current_position
+        verify pos is not null
+        verify pos =v 1
+		verify not s.skip_character ( '2' )
+        pos = s.current_position
+        verify pos is not null
+        verify pos =v 1
+
+		verify s.skip_character ( '1' )
+        pos = s.current_position
+        verify pos is not null
+        verify pos =v 2
+
+		verify s.skip_string ( "2a" )
+        pos = s.current_position
+        verify pos is not null
+        verify pos =v 4
+
+		variable current_char = s.consume_current_character
+		verify current_char is not null
+		verify current_char =v 'b'
+        pos = s.current_position
+        verify pos is not null
+        verify pos =v 5
+
+		// verify s.consume_regex ( regex.create ( '''[a-zA-Z0-9_]+''' ) ) =v "AB_1_"
+		const r1 = s.consume_regex ( regex.create ( '''[a-zA-Z0-9_]+''' ) )
+		verify r1 is not null
+		verify r1 =v "AB_1_"
+        pos = s.current_position
+        verify pos is not null
+        verify pos =v 10
+
+		// verify s.consume_regex ( regex.create ( '''[+-]+''' ) ) =v "+-"
+		const r2 = s.consume_regex ( regex.create ( '''[+-]+''' ) )
+		verify r2 is not null
+		verify r2 =v "+-"
+        pos = s.current_position
+        verify pos is not null
+        verify pos =v 12
+
+		current_char = s.consume_current_character
+		verify current_char is not null
+		verify current_char =v '?'
+		verify not s.has_more
+        pos = s.current_position
+        verify pos is null
+	.
+
+.	
+	

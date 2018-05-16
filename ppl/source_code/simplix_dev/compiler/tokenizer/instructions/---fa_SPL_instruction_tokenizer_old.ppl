@@ -1,0 +1,70 @@
+factory SPL_instruction_tokenizer
+
+	attributes access:private
+	    SPL_tokenizer SPL_tokenizer = fa_SPL_tokenizer.create
+	.
+
+    function scan_instructions
+    
+        const token_iterator = a_SPL_tokenizer.tokenize ( i_source_code )
+    
+        return { next_instruction ( token_iterator ) }
+    .
+    
+    functions access:private
+    
+        function next_instruction -> SPL_instruction_AST or null
+            in token_iterator finite_iterator_without_nulls<SPL_token>
+        
+            const tokens = mutable_indexed_list<SPL_token>.create
+            
+            // read all tokens up to end of line
+            repeat forever
+                case type of i_token_iterator.next as token
+                    when SPL_new_lines_token
+                        exit repeat
+                    when null
+                        exit repeat
+                    otherwise
+                        tokens.append ( token )
+                .
+            .
+            
+            if tokens.is_empty then
+                return null
+            else
+                // %we<tokens.to_long_string>
+                return SPL_instruction_AST.create ( tokens.make_immutable )
+            .
+        .
+    .
+    
+    creator create kind:in_all
+    
+	tests
+	    const tokenizer = create
+	    const iterator = tokenizer.scan_instructions ( '''const r = "abc"
+	    
+f1(r)''' )
+
+        var instruction = iterator.next
+        verify instruction is not null
+        verify instruction.tokens_as_string_lines =v '''const (1,1)
+r (1,7)
+= (1,9)
+"abc" (1,11)
+'''
+        
+        instruction = iterator.next
+        verify instruction is not null
+        verify instruction.tokens_as_string_lines =v '''f1 (3,1)
+( (3,3)
+r (3,4)
+) (3,5)
+'''
+        
+        instruction = iterator.next
+        verify instruction is null
+    .
+
+.

@@ -1,0 +1,13 @@
+service simplix_dev_tests_starter
+
+	function start
+
+        const success yes_no = se_test_commands.run_project_tests ( project_id = PPL_identifier.create ( "simplix_dev" ) )
+    
+        if success then
+            OS_process.exit_with_success
+        else
+            OS_process.exit_with_error
+        .
+	.
+.

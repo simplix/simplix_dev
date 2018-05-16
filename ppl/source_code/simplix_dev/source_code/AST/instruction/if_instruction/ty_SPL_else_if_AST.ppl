@@ -1,0 +1,5 @@
+data type SPL_else_if_AST
+
+    att expression SPL_expression_AST
+    att instructions list<SPL_instruction_AST> or null
+.

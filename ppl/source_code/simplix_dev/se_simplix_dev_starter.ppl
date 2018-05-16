@@ -1,0 +1,145 @@
+service simplix_dev_starter
+
+	function start
+	
+	    variable error string or null = null
+        if se_OS_process.command_line_arguments as arguments is null then
+            help_command
+        else
+            case value of arguments.first as command
+                
+                when "run"
+                    run_command_and_exit ( arguments )
+                
+                when "create_app"
+                    error = create_app_command ( arguments )
+                
+                when "help"
+                    help_command
+                    
+                when "check"
+                    check_command
+                    
+                when null
+                    help_command
+                    error = "A Simplix command is required."
+                
+                otherwise
+                    if command.contains ( "." ) then
+                        run_start_file_path_and_exit ( command )
+                    else
+                        help_command
+                        error = """'{{command}}' is an invalid command."""
+                    .
+            .
+        .
+        
+        if error is null then
+    	    OS_process.exit_with_success
+        else
+            OS.err.write_line ( """Error: {{error}}""" )
+            OS_process.exit_with_error
+        .
+	.
+	
+    functions access:private
+        
+        function run_command_and_exit ( arguments indexed_list<string or null> )
+        
+            variable path string or null
+            case value of arguments.size
+                when 1
+                    path = "src/start.sim"
+                when 2
+                    path = arguments.get ( 2 )
+                    if path is null then
+                        OS.err.write_line ( "An empty path is not allowed." )
+                        OS_process.exit_with_error
+                    .
+                otherwise
+                    OS.err.write_line ( """'{{? arguments.get ( 3 )}}' is illegal. The 'run' command cannot have more than 1 argument.""" )
+                    OS_process.exit_with_error
+            .
+            assert path is not null
+            
+            run_start_file_path_and_exit ( path )
+        .
+    
+        function run_start_file_path_and_exit ( path string )
+        
+            case type of se_SPL_source_code_file_executor.try_run_application_source_code_file_path_and_wait ( path )
+                when signed_integer_32 exit_code
+                    OS_process.exit ( exit_code )
+                when anticipated_runtime_error e
+                    OS.err.write_line ( """Error: {{e.description}}""" )
+                    OS_process.exit_with_error
+            .
+        .
+    
+        function create_app_command ( arguments indexed_list<string or null> ) -> string or null
+
+            variable app_id string or null
+            case value of arguments.size
+                when 1
+                    return "An application identifier must be specified."
+                when 2
+                    app_id = arguments.get ( 2 )
+                    if app_id is null then
+                        return "An empty application identifier is not allowed."
+                    .
+                otherwise
+                    return """'{{? arguments.get ( 3 )}}' is illegal. The 'create_app' command cannot have more than 1 argument."""
+            .
+            assert app_id is not null
+            
+            variable root_directory_name directory_name
+            case type of directory_name.try_parse ( app_id )
+                when directory_name dn
+                    root_directory_name = dn
+                when string_to_object_parsing_error<*> e
+                    return """'{{app_id}}' is not a valid directory name"""
+            .
+            assert root_directory_name is not null
+            
+            // TODO check validity of app_id
+                
+            const root_directory = se_OS_directories.current_working_directory.append_child_name ( root_directory_name )
+            if root_directory.exists then
+                return """Directory '{{root_directory.to_string}}' exists already."""
+            .
+            
+            const application = SPL_application.create (
+                root_directory,
+                start_module_id = se_SPL_constants.default_start_module_id )
+
+            return application.try_create_app?.description
+        .
+    
+        function help_command
+        
+            OS.out.write_line ( '''Usage:
+sim create_app [id] : Create a Simplix application in directory [id]
+sim run             : Compile and run a Simplix application (must be called from the application's root directory)
+sim run [path]      : Compile and run the file defined by [path] (absolute or relative path) 
+sim check           : Check the Simplix installation
+sim help            : display help''' )
+        .
+        
+        function check_command
+        
+            java
+                if ( javax.tools.ToolProvider.getSystemJavaCompiler() == null ) {
+                    System.out.println ( "ERROR: No Java compiler available." );
+                    System.out.println ( "(javax.tools.ToolProvider.getSystemJavaCompiler() == null)" );
+                    System.out.println ( "This happens typically if a Java Runtime Environment (JRE) is used instead of a Java Development Kit (JDK). Please ensure that you are using a JDK that contains a Java compiler." );
+                    System.exit ( 1 );
+                }
+            end java
+        
+            OS.out.write_line ( '''CONGRATULATIONS!
+Simplix is ready.
+Enjoy!'''  )
+        .
+	.
+	
+.

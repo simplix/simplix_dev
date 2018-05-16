@@ -1,0 +1,11 @@
+type SPL_instruction_tokens
+
+	att tokens indexed_list<SPL_token>
+    
+    function start_line -> pos_32
+    function end_line -> pos_32
+    
+    function tokens_as_string_lines -> string
+    
+    // TD function source_code ( whole_source_code string ) -> string
+.

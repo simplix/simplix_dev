@@ -1,0 +1,9 @@
+factory SPL_id_token
+
+    function get_id = SPL_identifier.create ( a_value )
+
+    function to_string = """{{value}} ({{line}},{{column}})"""
+    
+    creator create kind:in_all
+    
+.

@@ -1,0 +1,539 @@
+factory SPL_parser
+
+    attributes access:private
+        att helper SPL_parser_helper = SPL_parser_helper.create
+    .
+
+    function parse_module
+    
+        a_helper.initialize ( source_code, library_path, module_id, error_handler )
+        
+        advance_instruction        
+        
+        const java_header = accept_java_header
+        
+        const functions = mutable_map<key:SPL_identifier, value:SPL_function_AST>.create
+        repeat while current_instruction #r null
+
+            if require_function as function is not null then
+                functions.add ( key = function.id.get_id, value = function )
+            else
+                exit repeat
+            .
+        .
+        
+        return SPL_module_AST.create ( java_header, functions = functions.make_immutable_or_null )
+    .
+    
+    
+    functions access:private
+    
+        function accept_java_header -> SPL_java_token or null
+        
+            const r = accept_java_token ( se_SPL_keywords.java_header )
+            if r is not null then
+                advance_instruction
+            .
+            return r
+        .
+    
+        // function declaration
+    
+        function require_function -> SPL_function_AST or null
+        
+            if not require_keyword ( se_SPL_keywords.function ) then
+                return null
+            .
+            
+            const id = require_id on_null: return null
+            
+            const input_arguments = accept_function_input_arguments
+            
+            const output_argument = accept_function_output_argument
+            
+            require_end_of_instruction_and_advance_instruction
+            
+            const instructions = accept_instructions
+            
+            if not require_end_dot_and_advance_instruction then
+                return null
+            .
+
+            return SPL_function_AST.create ( id, input_arguments, output_argument, instructions )
+        .
+        
+        function accept_function_input_arguments -> list<SPL_id_token> or null
+
+            if not accept_symbol ( se_SPL_symbols.opening_parenthesis ) then
+                return null
+            .
+
+            const result = accept_id_list
+            require_symbol ( se_SPL_symbols.closing_parenthesis )
+            
+            return result
+        .
+
+        function accept_function_output_argument -> SPL_id_token or null
+
+            if not accept_symbol ( se_SPL_symbols.input_output_separator ) then
+                return null
+            .
+            
+            return require_id
+        .
+
+        
+        // instructions
+        
+        function accept_instructions ( alternative_end string or null default:null ) -> list<SPL_instruction_AST> or null
+        
+            const r = mutable_list<SPL_instruction_AST>.create
+            
+            repeat forever
+                if is_on_symbol ( se_SPL_symbols.dot ) then
+                    exit repeat
+                .
+                if alternative_end is not null then
+                    if is_on_keyword ( alternative_end ) then
+                        exit repeat
+                    .
+                .
+                
+                const instruction = require_instruction
+                if instruction is null then
+                    exit repeat
+                else
+                    r.append ( instruction )
+                .
+            .
+            
+            return r.make_immutable_or_null
+        .
+        
+        function require_instruction -> SPL_instruction_AST or null
+        
+            if current_instruction is null then
+                report_error ( "End of source code encountered, but expecting more instruction(s)." )
+                return null
+            .
+        
+            const r SPL_instruction_AST or null = accept_constant_instruction \
+                if_null: accept_variable_instruction \
+                if_null: accept_assignment_instruction \
+                if_null: accept_if_instruction \
+                if_null: accept_repeat_instruction \
+                if_null: accept_return_instruction \
+                if_null: accept_java_instruction \
+                if_null: accept_function_call_instruction
+            
+            if r is null then
+                report_error ( "Invalid instruction." )
+                advance_instruction
+            else
+                require_end_of_instruction_and_advance_instruction
+            .
+        
+            return r
+        .
+        
+        function accept_constant_instruction -> SPL_constant_instruction_AST or null
+        
+            if not accept_keyword ( se_SPL_keywords.const ) then
+                return null
+            .
+            
+            const tokens = require_current_instruction_tokens
+
+            const id = require_id on_null: return null
+            
+            require_symbol ( se_SPL_symbols.equal_sign )
+            
+            const expression = require_expression on_null: return null
+            
+            return SPL_constant_instruction_AST.create ( tokens, id, expression )
+        .
+        
+        function accept_variable_instruction -> SPL_variable_instruction_AST or null
+        
+            if not accept_keyword ( se_SPL_keywords.var ) then
+                return null
+            .
+            
+            const tokens = require_current_instruction_tokens
+
+            const id = require_id on_null: return null
+            
+            require_symbol ( se_SPL_symbols.equal_sign )
+            
+            const expression = require_expression on_null: return null
+            
+            return SPL_variable_instruction_AST.create ( tokens, id, expression )
+        .
+        
+        function accept_assignment_instruction -> SPL_assignment_instruction_AST or null
+        
+            if peek_next_token_value as next_token_value is not null then
+                if next_token_value #v se_SPL_symbols.equal_sign then
+                    return null
+                .
+            else
+                return null
+            .
+            
+            const tokens = require_current_instruction_tokens
+
+            const id = require_id on_null: return null
+            
+            require_symbol ( se_SPL_symbols.equal_sign )
+            
+            const expression = require_expression on_null: return null
+            
+            return SPL_assignment_instruction_AST.create ( tokens, id, expression )
+        .
+        
+        function accept_if_instruction -> SPL_if_instruction_AST or null
+        
+            if not accept_keyword ( se_SPL_keywords.if ) then
+                return null
+            .
+
+            const tokens = require_current_instruction_tokens
+            
+            const negated = accept_keyword ( se_SPL_keywords.not )
+
+            const expression = require_expression on_null: return null
+            accept_keyword ( se_SPL_keywords.then )
+            require_end_of_instruction_and_advance_instruction
+            
+            const then_instructions = accept_instructions ( alternative_end = se_SPL_keywords.else )
+            
+            variable else_instructions list<SPL_instruction_AST> or null = null
+            if accept_keyword ( se_SPL_keywords.else ) then
+                require_end_of_instruction_and_advance_instruction
+                else_instructions = accept_instructions
+            .
+
+            if not require_dot then
+                return null
+            .
+
+            return SPL_if_instruction_AST.create ( tokens, negated, expression, then_instructions, else_ifs = null, else_instructions )
+        .
+        
+        function accept_repeat_instruction -> SPL_repeat_for_each_instruction_AST or null
+        
+            if not accept_keyword ( se_SPL_keywords.repeat ) then
+                return null
+            .
+            if not require_keyword ( se_SPL_keywords.for ) then
+                return null
+            .
+            if not require_keyword ( se_SPL_keywords.each ) then
+                return null
+            .
+            
+            const tokens = require_current_instruction_tokens
+
+            const element_id = require_id on_null: return null
+            
+            if not require_keyword ( se_SPL_keywords.in ) then
+                return null
+            .
+            
+            const expression = require_expression on_null: return null
+            require_end_of_instruction_and_advance_instruction
+
+            const instructions = accept_instructions
+            
+            if not require_dot then
+                return null
+            .
+
+            return SPL_repeat_for_each_instruction_AST.create ( tokens, element_id, expression, instructions )
+        .
+
+        function accept_function_call_instruction -> SPL_function_call_instruction_AST or null
+        
+            const tokens = require_current_instruction_tokens
+
+            variable module_id SPL_id_token or null
+            variable function_id SPL_id_token
+            const module_or_function_id = require_id on_null: return null
+            if accept_dot then
+                module_id = module_or_function_id
+                const fid = require_id on_null: return null
+                function_id = fid
+            else
+                module_id = null
+                function_id = module_or_function_id
+            .
+            
+            const input = require_function_call_input
+        
+            return SPL_function_call_instruction_AST.create (
+                tokens,
+                function_call = SPL_function_call_AST.create ( module_id, function_id, input ) )
+        .
+        
+        function require_function_call_input -> list<SPL_expression_AST> or null
+        
+            if not is_on_symbol ( se_SPL_symbols.opening_parenthesis ) then
+                report_error ( '''The function's input arguments must be specified, such as in the following two examples:
+write_line ( "Hello" )
+write_new_line()''' )
+                return null
+            .
+            return accept_function_call_input
+        .
+        
+        function accept_function_call_input -> list<SPL_expression_AST> or null
+        
+            if not accept_symbol ( se_SPL_symbols.opening_parenthesis ) then
+                return null
+            .
+            
+            const r = mutable_list<SPL_expression_AST>.create
+            
+            repeat while not accept_symbol ( se_SPL_symbols.closing_parenthesis )
+                const expression = require_expression
+                if expression is null then
+                    exit repeat
+                .
+                assert expression is not null
+                r.append ( expression )
+                
+                accept_symbol ( se_SPL_symbols.comma )
+            .
+
+            return r.make_immutable_or_null
+        .
+        
+        function accept_return_instruction -> SPL_return_instruction_AST or null
+        
+            if not accept_keyword ( se_SPL_keywords.return ) then
+                return null
+            .
+            
+            const tokens = require_current_instruction_tokens
+
+            const expression = accept_expression
+            
+            return SPL_return_instruction_AST.create ( tokens, expression )
+        .
+        
+        function accept_java_instruction -> SPL_java_instruction_AST or null
+        
+            const token = accept_java_token ( se_SPL_keywords.java ) on_null: return null
+            return SPL_java_instruction_AST.create ( [ token ] )
+        .
+        
+        function accept_java_token ( keyword string ) -> SPL_java_token or null
+        
+            case type of current_token
+                when SPL_java_token java_token
+                    if java_token.java_keyword =v i_keyword then
+                        advance_token
+                        return java_token
+                    else
+                        return null
+                    .
+                    
+                when null
+                    return null
+                    
+                otherwise
+                    return null
+            .
+        .
+        
+        
+        // expressions
+        
+        function require_expression -> SPL_expression_AST or null
+        
+            const r = accept_expression
+            if r is null then
+                report_error ( "Expression required." )
+            .
+            return r
+        .
+        
+        function accept_expression -> SPL_expression_AST or null
+        
+            case type of current_token
+                
+                when SPL_id_token id_token
+                    advance_token
+                    if accept_symbol ( se_SPL_symbols.dot ) then
+                        const function_id = require_id on_null: return null
+                        const input = require_function_call_input
+                        return SPL_function_call_expression_AST.create (
+                            SPL_function_call_AST.create ( module_id = id_token, function_id, input ) )
+                    
+                    else if is_on_symbol ( se_SPL_symbols.opening_parenthesis ) then
+                        const function_id = id_token
+                        const input = require_function_call_input
+                        return SPL_function_call_expression_AST.create (
+                            SPL_function_call_AST.create ( module_id = null, function_id, input ) )
+                    
+                    else
+                        return SPL_const_or_var_expression_AST.create ( id_token )
+                    .
+                
+                when SPL_string_literal_token token
+                    advance_token
+                    return SPL_string_expression_AST.create ( token )
+                    
+                when SPL_number_literal_token token
+                    advance_token
+                    return SPL_number_expression_AST.create ( token )
+                    
+                when SPL_symbol_token symbol_token
+                    return require_list_expression
+                    
+                when null
+                    return null
+
+                otherwise
+                    return null
+            .
+        .
+        
+        function require_list_expression -> SPL_list_expression_AST or null
+        
+            const r = accept_list_expression
+            if r is null then
+                report_error ( "List expression required." )
+            .
+            return r
+        .
+
+        function accept_list_expression -> SPL_list_expression_AST or null
+        
+            if not accept_symbol ( SPL_symbols.opening_square_bracket ) then
+                return null
+            .
+            
+            const elements = mutable_list<SPL_expression_AST>.create
+            
+            repeat while not accept_symbol ( SPL_symbols.closing_square_bracket )
+                const element = require_expression on_null: return null
+                elements.append ( element )
+                accept_comma
+            .
+            
+            return SPL_list_expression_AST.create ( elements.make_immutable_or_null )
+        .
+        
+        
+        // shared functions
+        
+        function accept_id_list -> list<SPL_id_token> or null
+        
+            const r = mutable_list<SPL_id_token>.create
+            
+            repeat forever
+                const id = accept_id
+                if id is not null then
+                    r.append ( id )
+                else
+                    exit repeat
+                .
+                
+                accept_symbol ( se_SPL_symbols.comma )
+            .
+            
+            return r.make_immutable_or_null
+        .
+        
+        
+        // helper
+
+
+        // instruction
+        
+        function current_instruction -> SPL_instruction_AST or null = a_helper.current_instruction
+        
+        function advance_instruction -> SPL_instruction_AST or null = a_helper.advance_instruction
+        
+        function require_end_of_instruction_and_advance_instruction -> yes_no
+            
+            const r = a_helper.require_end_of_instruction
+            a_helper.advance_instruction
+            return r
+        .
+        
+        function require_current_instruction_tokens -> indexed_list<child_of: SPL_token>
+            
+            const instruction = current_instruction
+            assert instruction is not null
+            return instruction.tokens
+        .
+        
+        
+        // token
+        
+        function current_token -> SPL_token or null = a_helper.current_token
+        
+        function advance_token -> SPL_token or null = a_helper.advance_token
+        
+        function peek_next_token_value -> string or null = a_helper.peek_next_token_value
+        
+        
+        // is
+        
+//        function is_current_token_value ( value string ) -> yes_no = a_helper.is_current_token_value ( value )
+        
+        function is_on_symbol ( string ) -> yes_no = a_helper.is_on_symbol ( string )
+        
+        function is_on_keyword ( string ) -> yes_no = a_helper.is_on_keyword ( string )
+        
+        
+        // accept
+        
+        function accept_keyword ( string ) -> yes_no = a_helper.accept_token_value ( string ) #r null
+        
+//        function accept_token_value ( string ) -> yes_no = a_helper.accept_token_value ( string ) #r null
+        
+        function accept_id -> SPL_id_token or null = a_helper.accept_id_token
+        
+        function accept_dot -> yes_no = accept_symbol ( se_SPL_symbols.dot )
+        
+        function accept_comma -> yes_no = accept_symbol ( se_SPL_symbols.comma )
+        
+        function accept_symbol ( string ) -> yes_no = a_helper.accept_symbol ( string )
+        
+        
+        // require
+        
+        function require_keyword ( string ) -> yes_no = a_helper.require_token_value ( string ) #r null
+        
+//        function require_token_value ( string ) -> SPL_token or null = a_helper.require_token_value ( string )
+        
+        function require_id -> SPL_id_token or null = a_helper.require_id_token
+        
+        function require_symbol ( string ) -> yes_no = a_helper.require_symbol ( string )
+
+        function require_dot -> yes_no = require_symbol ( se_SPL_symbols.dot )
+        
+        function require_end_dot_and_advance_instruction -> yes_no
+        
+            const r = require_dot
+            require_end_of_instruction_and_advance_instruction
+            return r
+        .
+        
+        
+        // error
+
+        function report_error ( message string )
+            a_helper.report_error ( message )
+        .
+    .
+
+
+    creator create kind:in_all
+
+
+.

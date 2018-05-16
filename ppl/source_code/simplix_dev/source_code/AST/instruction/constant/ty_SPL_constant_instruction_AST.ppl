@@ -1,0 +1,8 @@
+type SPL_constant_instruction_AST
+
+    inherit SPL_instruction_AST
+    
+    att id SPL_id_token
+    att expression SPL_expression_AST
+    
+.

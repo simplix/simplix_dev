@@ -1,0 +1,89 @@
+factory SPL_repository
+
+    attributes access:private
+        att modules mutable_map<key:SPL_identifier, value:SPL_module> = mutable_map<key:SPL_identifier, value:SPL_module>.create
+    .
+    
+    function add_directory
+
+        case type of i_source_code_directory.try_get_file_stream
+            
+            when stream<*> s
+                const file_stream stream<file> = s type_check:no
+                
+                const success_reference = variable_object_reference<yes_no>.create ( yes )
+                file_stream.for_each ( { file ->
+                    const success = add_file (
+                        source_code_file = file
+                        root_directory = i_source_code_directory
+                        error_handler )
+                    if not success then
+                        success_reference.set ( no )
+                    .
+                } )
+                return success_reference.object
+    
+            when directory_error e
+                i_error_handler.anticipated_runtime_error ( e )
+                return no
+        .
+    .
+
+    function add_file
+    
+        const file_name = i_source_code_file.name
+    
+        if file_name.value.starts_with ( se_SPL_constants.ignored_file_prefix ) then
+            return yes
+        .
+
+        const relative_path = i_source_code_file.path.to_relative_file ( i_root_directory.path )
+
+        const extension = file_name.extension?.value.to_lower_case if_null: "qqq"
+        if extension #v se_SPL_constants.source_code_file_extension.value then
+            i_error_handler.warning ( """File '{{relative_path}}' is ignored, because it's extension is not '{{se_SPL_constants.source_code_file_extension}}'""" )
+            return yes // TD no?
+        .
+
+        variable library_path SPL_identifier_path or null = null
+        if relative_path.directory as relative_directory_path is not null then
+            // TD check if valid
+            library_path = SPL_identifier_path.create_from_relative_directory_path ( relative_directory_path )
+        .
+        
+        // TD check if valid
+        const id = SPL_identifier.create_from_file_name ( file_name )
+
+        const source_code_supplier object_supplier<string or null or anticipated_runtime_error> = {
+            return se_text_file_reader.try_read_content ( file = i_source_code_file )
+        }
+        
+        const module = SPL_module.create ( library_path, id, source_code_supplier, AST = null )
+
+        if get_module_or_null ( id ) as existing_module is not null then
+            error_handler.error ( """Duplicate definition of module '{{id}}', which is defined in {{module.module_path}} and  {{existing_module.module_path}}.""" )
+            return no
+        .
+        
+        modules.add ( key = module.id, value = module )
+        
+        return yes
+    .
+
+    function is_empty = modules.is_empty
+
+    function has_module = modules.contains_key ( module_id )
+
+    function module_iterator = modules.iterator
+    
+    function get_module_or_null = modules.get_or_null ( module_id )
+
+    function get_module_function_or_null
+        
+        const module = modules.get_or_null ( module_id ) on_null:return null
+        return module.AST?.functions?.get_or_null ( function_id )
+    .
+    
+    creator create kind:in_all
+
+.

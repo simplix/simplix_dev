@@ -1,0 +1,21 @@
+type SPL_coding_error_handler
+
+    functions
+        coding_error ( error SPL_coding_error )
+    
+        anticipated_runtime_error ( error anticipated_runtime_error )
+        
+        error ( error string )
+        
+        warning ( warning string )
+        
+        has_errors -> yes_no
+    
+        has_warnings -> yes_no
+        
+        error_count -> zero_pos_32
+        
+        warning_count -> zero_pos_32
+    .
+    
+.

@@ -1,0 +1,13 @@
+factory SPL_java_instruction_AST
+
+%fa_SPL_instruction_AST_functions
+
+    function java_code
+
+        const java_token SPL_java_token = a_tokens.first type_check:no
+        return java_token.java_code
+    .
+
+    creator create kind:in_all
+    
+.

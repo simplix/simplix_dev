@@ -1,0 +1,6 @@
+type SPL_error_token
+
+    inherit SPL_token
+    
+    att error_message string
+.

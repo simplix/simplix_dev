@@ -1,0 +1,4 @@
+type SPL_string_literal_token
+
+    inherit SPL_token
+.

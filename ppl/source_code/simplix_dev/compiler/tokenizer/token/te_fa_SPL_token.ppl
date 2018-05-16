@@ -1,0 +1,13 @@
+template fa_SPL_token
+
+    param factory_id
+    
+factory {factory_id}
+
+    function to_string = """{{value}} ({{line}},{{column}})"""
+    
+    creator create kind:in_all
+    
+.
+
+.

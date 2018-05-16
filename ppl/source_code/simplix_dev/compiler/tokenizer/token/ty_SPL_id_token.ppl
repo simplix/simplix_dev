@@ -1,0 +1,6 @@
+type SPL_id_token
+    
+    inherit SPL_token
+    
+    function get_id -> SPL_identifier
+.

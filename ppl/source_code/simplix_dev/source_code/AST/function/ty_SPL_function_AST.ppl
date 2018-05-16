@@ -1,0 +1,10 @@
+type SPL_function_AST
+
+    attributes
+        id SPL_id_token
+        input_arguments list<SPL_id_token> or null
+        output_argument SPL_id_token or null
+        instructions list<SPL_instruction_AST> or null
+    .
+    
+.

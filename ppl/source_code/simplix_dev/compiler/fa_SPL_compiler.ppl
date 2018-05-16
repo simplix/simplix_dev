@@ -1,0 +1,62 @@
+factory SPL_compiler
+
+    attributes access:private
+        att parser SPL_parser = SPL_parser.create
+        att analyzer SPL_semantic_analyzer = SPL_semantic_analyzer.create
+        att code_generator SPL_code_generator = SPL_Java_code_generator.create
+    .
+
+    function compile_directory
+    
+        const repository = SPL_repository.create
+        if not repository.add_directory ( i_source_code_directory, i_error_handler ) then
+            return no
+        .
+    
+        // parse
+        repeat for each module in repository.module_iterator
+            case type of module.source_code_supplier.get
+                when string source_code
+                    module.AST = a_parser.parse_module (
+                        source_code,
+                        library_path = module.library_path
+                        module_id = module.id
+                        error_handler )
+
+                when null
+                    i_error_handler.error ( """The source code for module {{module.module_path}} is empty.""" )
+                    next repeat
+
+                when anticipated_runtime_error e
+                    i_error_handler.anticipated_runtime_error ( e )
+                    return no
+            .
+        .
+        if i_error_handler.has_errors then
+            return no
+        .
+        
+        // analyze
+        if not a_analyzer.analyze_repository ( repository, start_module_id, error_handler ) then
+            return no
+        .
+        
+        // generate Java code (.java files)
+        
+        if directory_utilities.create_path_or_clean_up_directory ( i_java_files_directory ) as dir_error is not null then
+            error_handler.anticipated_runtime_error ( dir_error )
+            return no
+        .
+        
+        return code_generator.generate_code (
+            repository,
+            target_code_directory = i_java_files_directory
+            error_handler )
+    .
+    
+    functions access:private
+    .
+    
+    creator create kind:in_all
+    
+.

@@ -1,0 +1,6 @@
+type finite_iterator_without_nulls < element child_of:any_type >
+
+	inherit iterator_base
+
+	function next -> $element or null
+.

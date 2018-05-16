@@ -1,0 +1,7 @@
+type SPL_return_instruction_AST
+
+    inherit SPL_instruction_AST
+
+    att expression SPL_expression_AST or null
+    
+.

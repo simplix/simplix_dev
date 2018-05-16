@@ -1,0 +1,18 @@
+factory SPL_instruction_tokens
+
+    function start_line = tokens.first.line
+
+    function end_line = tokens.last.line
+    
+    function tokens_as_string_lines
+    
+        const r = mutable_string.create
+        repeat for each token in tokens
+            r.append_line ( token.to_string )
+        .
+        return r.to_string
+    .
+
+    creator create kind:in_all
+    
+.

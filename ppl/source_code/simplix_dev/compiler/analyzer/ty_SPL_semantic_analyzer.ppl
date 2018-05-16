@@ -1,0 +1,8 @@
+type SPL_semantic_analyzer
+
+    function analyze_repository -> yes_no
+        in repository SPL_repository
+        in start_module_id SPL_identifier
+        in error_handler SPL_coding_error_handler
+    .
+.

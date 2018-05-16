@@ -1,0 +1,15 @@
+service simplix_dev_java_starter
+
+	java_header
+		import org.pp.ppl_core.errors.runtime.unanticipated.handlers.java.se_Java_throwable_handler;
+		import org.pp.ppl_core.OS.se_OS_process;
+	end java_header
+
+	java
+		public static void main ( String[] arguments ) {
+		    se_OS_process.save_command_line_arguments ( arguments );
+            se_Java_throwable_handler.set_default_handler();
+            se_simplix_dev_starter.start();
+		}
+	end java
+.

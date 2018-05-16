@@ -1,0 +1,581 @@
+factory SPL_tokenizer
+
+	attributes kind:variable private:yes
+	
+		text_scanner text_scanner default:fa_text_scanner.create ( "dummy" )
+
+		current_line pos_32 default:1
+		current_column pos_32 default:1
+	.
+
+    function tokenize
+    
+        a_text_scanner = fa_text_scanner.create ( i_source_code )
+        
+        a_current_line = 1
+		a_current_column = 1
+    
+        return { next_token }
+    .
+    
+    functions access:private
+    
+        function next_token -> SPL_token or null
+        
+            if not has_more then
+                return null
+            .
+
+            const at_start_of_line = a_current_column =v 1
+
+            variable leading_white_space = consume_white_space
+
+            if at_start_of_line then
+    
+                if skip_comments as error_token is not null then
+                    return error_token
+                .
+
+                leading_white_space = consume_white_space
+                if accept_java_token ( leading_white_space ) as Java_token is not null then
+                    return Java_token
+                .
+            .
+
+            if skip_line_continuation as symbol_token is not null then
+                return symbol_token
+            .
+
+            const r SPL_token or null = accept_identifier \
+                if_null: accept_symbol \
+                if_null: accept_string_literal \
+                if_null: accept_number_literal
+            if r is not null then
+                return r
+            .
+            
+            skip_comment_at_end_of_line
+            
+            return \
+                accept_new_lines \
+                if_null: accept_illegal_character
+        .
+        
+		function accept_identifier -> SPL_id_token or null
+		
+            consume_regex_with_column ( se_SPL_tokenizer_constants.id_regex ) (
+                const value = value
+                const column = column )
+            if value is not null then
+                assert column is not null
+                return SPL_id_token.create (
+                    value,
+                    line = a_current_line
+                    column )
+            else
+                return null
+            .
+        .
+
+		function accept_symbol -> SPL_symbol_token or null
+		
+            const column = a_current_column          
+		    variable value string or null = null
+
+		    if consume_string ( se_SPL_symbols.input_output_separator ) then
+                value = se_SPL_symbols.input_output_separator
+            .
+            if value is not null then
+                return SPL_symbol_token.create ( value, line = a_current_line, column )
+            .
+            
+		    case value of current_character
+		        when null
+		            return null
+                when '('
+                    value = se_SPL_symbols.opening_parenthesis
+                when ')'
+                    value = se_SPL_symbols.closing_parenthesis
+                when '['
+                    value = se_SPL_symbols.opening_square_bracket
+                when ']'
+                    value = se_SPL_symbols.closing_square_bracket
+                when ','
+                    value = se_SPL_symbols.comma
+                when '='
+                    value = se_SPL_symbols.equal_sign
+                when '.'
+                    value = se_SPL_symbols.dot
+                when '\\'
+                    value = se_SPL_symbols.backslash
+                otherwise
+		            return null
+            .
+            assert value is not null
+
+            skip_current_character
+
+            return SPL_symbol_token.create ( value, line = a_current_line, column )
+        .
+
+        function accept_string_literal -> SPL_string_literal_token or null
+
+            consume_regex_with_column ( se_SPL_tokenizer_constants.string_literal_regex ) (
+                const value = value
+                const column = column )
+            if value is not null then
+                assert column is not null
+                return SPL_string_literal_token.create (
+                    value,
+                    line = a_current_line
+                    column )
+            else
+                return null
+            .
+        .
+        
+        function accept_number_literal -> SPL_number_literal_token or null
+            
+            consume_regex_with_column ( se_SPL_tokenizer_constants.signed_integer_number_literal_regex ) (
+                const integer_part = value
+                const column = column )
+            if integer_part is null then
+                return null
+            .
+            assert column is not null
+            
+            variable value = integer_part
+            
+            const has_decimal_point = consume_string ( "." )
+
+            if has_decimal_point then
+                value = value & "."
+                const fraction = consume_regex ( se_SPL_tokenizer_constants.unsigned_integer_number_literal_regex )
+                if fraction is not null then
+                    value = value & fraction
+                .
+            .
+            
+            return SPL_number_literal_token.create (
+                value,
+                line = a_current_line
+                column,
+                has_decimal_point )
+        .
+        
+        function accept_java_token ( leading_white_space string or null ) -> SPL_token or null
+        
+            // fast return if not at "java"
+            if not is_at_string ( se_SPL_keywords.java ) then
+                return null
+            .
+            
+            const regex_match_result = is_at_regex_with_result ( se_SPL_tokenizer_constants.java_code_start_regex ) \
+                on_null: return null
+                
+            const java_keyword = regex_match_result.group_found ( 1 )
+            assert java_keyword is not null
+            if java_keyword #v se_SPL_keywords.java and \
+                java_keyword #v se_SPL_keywords.java_header then
+                return null
+            .
+            
+            const start_line = a_current_line
+            const start_column = a_current_column
+
+            const token_value = mutable_string.create
+            token_value.append_if_not_null ( i_leading_white_space )
+            token_value.append ( regex_match_result.found )
+           
+            skip_all_until_end_of_line
+            token_value.append_if_not_null ( consume_single_new_line )
+            
+            const java_code_start_pos pos_32 = token_value.size + 1
+            variable java_code_end_pos pos_32 = java_code_start_pos
+            
+            const last_line_regex = fa_regex.create ( """[ \t]*end {{java_keyword}}[ \t]*""" )
+            
+            repeat forever
+                if not has_more then
+                    return SPL_error_token.create (
+                        value = java_keyword,
+                        line = start_line,
+                        column = start_column,
+                        error_message = """A '{{java_keyword}}' instruction must be ended with 'end {{java_keyword}}' at a subsequent line.""" )
+                .
+                
+                const line = consume_all_until_end_of_line
+                if line is not null then
+                    if line.matches_regex ( last_line_regex ) then
+                        java_code_end_pos = pos_32.create_from_int_32 ( token_value.size )
+                        token_value.append ( line )
+                        exit repeat
+                    else
+                        token_value.append ( line )
+                    .
+                .
+                
+                token_value.append_if_not_null ( consume_space_or_tab_lines.result )
+            .
+            
+            return SPL_java_token.create (
+                value = token_value.to_string
+                line = start_line
+                column = 1
+                java_keyword,
+                java_code_start_pos,
+                java_code_end_pos )
+        .
+
+        function accept_new_lines -> SPL_new_lines_token or null
+        
+            const line = a_current_line
+            const column = a_current_column
+            consume_space_or_tab_lines() (
+                const value = result
+                const num_lines = num_lines )
+            if value is null then
+                return null
+            .
+            assert num_lines is not null
+            
+            return SPL_new_lines_token.create ( value, line, column, num_lines = pos_32.create_from_int_32 ( num_lines ) )
+        .
+
+		function accept_illegal_character -> SPL_error_token or null
+		
+		    if consume_current_character as current_char is not null then
+                return SPL_error_token.create (
+                    value = current_char.to_string,
+                    line = a_current_line
+                    column = a_current_column - 1,
+                    error_message = """'{{current_char}}' is an illegal character.""" )
+            else
+                return null
+            .
+        .
+        
+        function skip_comments -> SPL_error_token or null
+        
+            repeat while is_at_string ( se_SPL_symbols.single_line_comment_start ) or \
+                is_at_string ( se_SPL_symbols.single_line_comment_start_2 )
+                if is_at_string ( se_SPL_symbols.multi_line_comment_start ) then
+                    if skip_multi_line_comment as error_token is not null then
+                        return error_token
+                    .
+                else
+                    skip_line_and_all_until_non_blank_character
+                .
+            .
+            return null
+        .
+        
+        function skip_comment_at_end_of_line
+        
+            if is_at_string ( se_SPL_symbols.single_line_comment_start ) or \
+                is_at_string ( se_SPL_symbols.single_line_comment_start_2 )
+                skip_all_until_end_of_line
+            .
+        .
+        
+        function skip_multi_line_comment -> SPL_error_token or null
+        
+            const line = a_current_line
+            const column = a_current_column
+
+            skip_line_and_all_until_non_blank_character
+
+            repeat forever
+                if not has_more then
+                    return SPL_error_token.create (
+                        value = se_SPL_symbols.multi_line_comment_start,
+                        line,
+                        column,
+                        error_message = """A multiline comment must be ended with '{{se_SPL_symbols.multi_line_comment_end}}' at a subsequent line.""" )
+                .
+                
+                if is_at_string ( se_SPL_symbols.multi_line_comment_end ) then
+                    skip_line_and_all_until_non_blank_character
+                    return null
+
+                else if is_at_string ( se_SPL_symbols.multi_line_comment_start ) then
+                    // nested multi-line comment
+                    if skip_multi_line_comment as error_token is not null then
+                        return error_token
+                    .
+                else
+                    skip_line_and_all_until_non_blank_character
+                .
+            .
+            return null
+        .
+        
+        function skip_line_continuation -> SPL_token or null
+
+            // fast return
+            if current_character as current_char is not null then
+                if not se_SPL_tokenizer_constants.line_continuation_characters.contains ( current_char.to_string ) then
+                    return null
+                .
+            else
+                return null
+            .
+        
+            const line = a_current_line
+            const column = a_current_column
+            
+            const line_continuation = consume_regex ( se_SPL_tokenizer_constants.line_continuation_regex )
+            if line_continuation is null then
+                return null
+            .
+
+            a_current_line = a_current_line + 1
+            a_current_column = 1
+            
+            const first_char = line_continuation.first.to_string
+            case value of first_char
+
+                when se_SPL_symbols.backslash
+                    skip_white_space
+                    return null
+
+                when se_SPL_symbols.opening_parenthesis
+                    return SPL_symbol_token.create (
+                        value = se_SPL_symbols.opening_parenthesis
+                        line,
+                        column )
+
+                when se_SPL_symbols.opening_square_bracket
+                    return SPL_symbol_token.create (
+                        value = se_SPL_symbols.opening_square_bracket
+                        line,
+                        column )
+
+                when se_SPL_symbols.comma
+                    return SPL_symbol_token.create (
+                        value = se_SPL_symbols.comma
+                        line,
+                        column )
+
+                otherwise
+                    throw "case error"
+            .
+        .
+
+        
+        // text scanner functions
+        
+        function has_more -> yes_no = a_text_scanner.has_more
+        
+        function current_character -> character or null = a_text_scanner.current_character
+        
+        // is_at
+        
+        function is_at_string ( string ) -> yes_no = a_text_scanner.is_at_string ( string )
+        
+        function is_at_regex ( regex ) -> yes_no = a_text_scanner.is_at_regex ( regex )
+        
+        function is_at_regex_with_result ( regex ) -> regex_match_result or null = \
+            a_text_scanner.is_at_regex_with_result ( regex )
+            
+        // skip
+        
+        function skip_current_character
+            
+            a_text_scanner.skip_current_character
+            a_current_column = a_current_column + 1
+        .
+        
+        function skip_string ( string ) -> yes_no
+            
+            const r = a_text_scanner.skip_string ( string )
+            if r then
+                adapt_current_column ( string )
+            .
+            return r
+        .
+        
+		function skip_white_space
+
+		    a_text_scanner.skip_regex ( se_SPL_tokenizer_constants.white_space_regex )
+		.
+
+        function skip_all_until_end_of_line
+			
+            consume_all_until_end_of_line
+        .
+
+        function skip_line_and_all_until_non_blank_character
+        
+            skip_all_until_end_of_line
+            consume_space_or_tab_lines
+            skip_white_space
+        .
+        
+        // consume
+        
+        function consume_current_character -> character or null
+            
+            const r = a_text_scanner.consume_current_character
+            if r is not null then
+                adapt_current_column ( r.to_string )
+            .
+            return r
+        .
+        
+        function consume_string ( string ) -> yes_no
+            
+            if a_text_scanner.skip_string ( string )
+                adapt_current_column ( string )
+                return yes
+            else
+                return no
+            .
+        .
+        
+        function consume_regex ( regex ) -> string or null
+            
+            const r = a_text_scanner.consume_regex ( regex )
+            if r is not null then
+                adapt_current_column ( r )
+            .
+            return r
+        .
+        
+        function consume_regex_with_column ( regex ) -> ( value string or null, column pos_32 or null )
+            
+            variable column pos_32 or null = a_current_column
+            const value = a_text_scanner.consume_regex ( regex )
+            if value is not null then
+                adapt_current_column ( value )
+            else
+                column = null
+            .
+            return value, column
+        .
+        
+		function consume_white_space -> string or null = consume_regex ( se_SPL_tokenizer_constants.white_space_regex )
+
+        function consume_all_until_end_of_line -> string or null
+        
+            if a_text_scanner.is_at_CR_or_LF then
+                return null
+            .
+			
+            if consume_all_to_new_line_excluding as r is not null then
+                return r
+            else
+                // could be at end of file
+                return a_text_scanner.consume_remaining
+            .
+        .
+
+        function consume_all_to_new_line_excluding -> string or null
+			
+            const r = a_text_scanner.consume_all_to_new_line_excluding
+            if r is not null then
+                adapt_current_column ( r )
+            .
+            return r
+        .
+
+        function consume_single_new_line -> string or null
+        
+            const r = a_text_scanner.consume_single_new_line
+            if r is not null then
+                a_current_line = a_current_line + 1
+                a_current_column = 1
+            .
+            return r
+        .
+
+        function consume_space_or_tab_lines -> ( result string or null, num_lines zero_pos_32 )
+        
+            a_text_scanner.consume_space_or_tab_lines () (
+                const result = result
+                const num_lines_64 = num_lines )
+            const num_lines = num_lines_64.to_zero_positive_32
+            if num_lines ># 0 then
+                a_current_line = a_current_line + num_lines
+                a_current_column = 1
+            .
+            return result, num_lines
+        .
+
+        function adapt_current_column ( consumed string )
+        
+            a_current_column = a_current_column + consumed.size
+        .
+    .
+
+    
+    creator create kind:in_all
+
+    
+	tests
+		const iterator = create.tokenize ( ''' qwe asd     %
+
+ind = "5"
+''')
+
+        // qwe
+		var token = iterator.next
+		verify token is not null
+		verify token.value =v "qwe" 
+		verify token.line =v 1 
+		verify token.column =v 2
+
+        // asd
+		token = iterator.next
+		verify token is not null
+		verify token.value =v "asd" 
+		verify token.line =v 1 
+		verify token.column =v 6
+
+        // %
+		token = iterator.next
+		verify token is not null
+		verify token.value =v "%" 
+		verify token.line =v 1 
+		verify token.column =v 14
+		
+		// new lines
+		token = iterator.next
+		verify token is not null
+		// TD verify token is_type SPL_new_lines_token
+		case type of token
+		    when SPL_new_lines_token new_lines_token
+		        verify new_lines_token.num_lines =v 2
+		    otherwise
+		        verify no
+        . 
+		verify token.line =v 1
+		verify token.column =v 15
+
+        // ind
+		token = iterator.next
+		verify token is not null
+		verify token.value =v "ind" 
+		verify token.line =v 3
+		verify token.column =v 1
+
+        // =
+		token = iterator.next
+		verify token is not null
+		verify token.value =v "=" 
+		verify token.line =v 3
+		verify token.column =v 5
+
+        // 5
+		token = iterator.next
+		verify token is not null
+		verify token.value =v '''"5"''' 
+		verify token.line =v 3
+		verify token.column =v 7
+
+		token = iterator.next
+		token = iterator.next
+		verify token is null
+    .
+    
+.

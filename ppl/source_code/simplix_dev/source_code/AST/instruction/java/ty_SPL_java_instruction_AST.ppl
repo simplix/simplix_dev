@@ -1,0 +1,7 @@
+type SPL_java_instruction_AST
+
+    inherit SPL_instruction_AST
+    
+    function java_code -> string or null
+    
+.

@@ -1,0 +1,13 @@
+type SPL_builder
+
+    function build_runnable -> yes_no
+        %existing_directory_input_argument_2<class_files_directory>
+        in Java_lib_directory directory
+        in run_directory directory
+        in application_id string
+        in start_module_id SPL_identifier
+	    in error_handler SPL_coding_error_handler
+    .
+
+.
+    

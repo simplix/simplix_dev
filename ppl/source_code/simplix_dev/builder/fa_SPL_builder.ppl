@@ -1,0 +1,131 @@
+factory SPL_builder
+
+    function build_runnable
+    
+        try
+            error? se_directory_utilities.create_path_or_clean_up_directory ( i_run_directory )
+            const run_lib_directory = i_run_directory.append_child_name ( directory_name.create ( "lib" ) )
+            error? create_run_lib_directory ( run_lib_directory, i_Java_lib_directory )
+            error? create_manifest_file ( class_files_directory, run_directory, run_lib_directory, start_module_id )
+            
+            const jar_file_name = file_name.create ( i_application_id & ".jar" )
+            error? create_jar_file ( jar_file_name, run_directory, class_files_directory )
+            error? create_run_file ( jar_file_name, run_directory )
+            return yes
+        on_any e
+            i_error_handler.anticipated_runtime_error ( e )
+            return no
+        .
+    .
+    
+    functions access:private
+    
+        function create_run_lib_directory -> anticipated_runtime_error or null
+            in run_lib_directory directory
+            in Java_lib_directory directory
+            
+            run_lib_directory.try_create_if_not_exists on_error: return_error
+            
+            // copy spl_core.jar
+            
+            // const spl_core_jar_file = file.try_parse (
+            //    """{{se_OS_directories.application_home_directory.to_string}}/SPL_core/spl_core.jar""" ) on_error: return_error
+            const spl_core_jar_file = se_SPL_constants.spl_core_jar_file
+            assert spl_core_jar_file.exists
+                
+            se_file_copier.copy_file_to_directory (
+                file = spl_core_jar_file
+                directory = run_lib_directory
+                file_overwrite_policy = file_copy_overwrite_policy.always_overwrite ) on_error: return_error
+
+            // copy app\lib to run\lib
+            if Java_lib_directory.exists then
+                se_file_copier.copy_directory_content (
+                    source = Java_lib_directory
+                    destination = run_lib_directory
+                    file_overwrite_policy = file_copy_overwrite_policy.always_overwrite
+                    include_child_directories = yes ) on_error: return_error
+            .
+            
+            return null
+        .
+
+        function create_manifest_file -> directory_or_file_error or null
+            in class_files_directory directory
+            in run_directory directory
+            in run_lib_directory directory
+            in start_module_id SPL_identifier
+        
+            const meta_inf_directory = i_class_files_directory.append_child_name ( directory_name.create ( "META-INF" ) )
+            se_directory_utilities.create_path_or_clean_up_directory ( meta_inf_directory ) on_error: return_error
+    
+            const manifest_file = file.create_for_name (
+                directory = meta_inf_directory.path
+                file_name = file_name.create ( "MANIFEST.MF" ) )
+                
+            const content = mutable_string.create
+            content.append_line ( "Manifest-Version: 1.0" )
+            content.append_line ( """Main-Class: {{se_SPL_code_generator_constants.module_prefix}}{{start_module_id}}""" )
+            
+            // add files found in lib\ to class-path
+            content.append ( "Class-Path: " )
+            const jar_files_stream = i_run_lib_directory.try_get_file_stream on_error: return_error
+            repeat for each jar_file in jar_files_stream.iterator is_first:is_first
+                // TD lines in MANIFEST.MF cannot be longer than 72 bytes; see:
+                // http://docs.oracle.com/javase/6/docs/technotes/guides/jar/jar.html#JAR%20Manifest
+                if not is_first then
+                    content.append_new_line
+                    content.append ( "  " )
+                .
+                const path = jar_file.path.to_relative_file ( i_run_directory.path ).value
+                content.append ( path.replace_all ( 
+                    to_replace = '''\'''
+                    replace_by = '''/''' ) )
+            .
+            content.append_new_line
+            
+            return se_text_file_writer.write_to_new_file (
+                string = content.to_string
+                file = manifest_file )
+        .
+
+        function create_jar_file -> IO_error or null
+            in jar_file_name file_name
+            in run_directory directory
+            in class_files_directory directory
+
+            const jar_file = file.create_for_name (
+                directory = i_run_directory.path
+                file_name = i_jar_file_name )
+    
+            return se_file_compression.create_zip_file_for_directory_content (
+                directory = i_class_files_directory
+                zip_file = jar_file
+                overwrite_existing_zip_file = no
+                include_child_directories = yes )
+        .
+
+        function create_run_file -> IO_error or null
+            in run_directory directory
+            in jar_file_name file_name
+
+            const run_file = file.create_for_name (
+                directory = i_run_directory.path
+                file_name = file_name.create ( """{{i_jar_file_name.remove_extension}}.bat""" ) )
+
+            const content = mutable_string.create
+            content.append_line ( "@echo off" )
+            content.append_line ( """java -jar {{i_jar_file_name}}""" )
+            content.append_line ( "pause" )
+
+            return se_text_file_writer.write_to_new_file (
+                string = content.to_string
+                file = run_file )
+        .
+    .
+    
+
+    creator create kind:in_all
+
+.
+ 

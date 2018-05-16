@@ -1,0 +1,25 @@
+type SPL_Java_code_generator_helper
+
+    functions
+        
+        start_of_module -> IO_error or null
+            in target_code_directory directory
+            in library_path SPL_identifier_path or null
+            in module_id SPL_identifier
+        .
+        
+        end_of_module
+
+        append ( string )
+        
+        append_line ( string )
+        
+        append_empty_line
+        
+        append_indent
+        
+        add_indent
+        
+        remove_indent
+    .
+.

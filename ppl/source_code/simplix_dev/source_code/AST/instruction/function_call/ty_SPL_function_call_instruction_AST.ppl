@@ -1,0 +1,7 @@
+type SPL_function_call_instruction_AST
+
+    inherit SPL_instruction_AST
+    
+    att function_call SPL_function_call_AST
+    
+.

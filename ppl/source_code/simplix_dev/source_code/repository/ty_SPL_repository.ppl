@@ -1,0 +1,27 @@
+type SPL_repository
+
+    function add_directory -> yes_no
+        %existing_directory_input_argument_2<source_code_directory>
+        in error_handler SPL_coding_error_handler
+    .
+
+    function add_file -> yes_no
+        %existing_file_input_argument_2<source_code_file>
+        in root_directory directory
+        in error_handler SPL_coding_error_handler
+    .
+
+    function is_empty -> yes_no
+
+    function has_module ( module_id SPL_identifier ) -> yes_no
+
+    function module_iterator -> finite_iterator<SPL_module>
+
+    function get_module_or_null ( module_id SPL_identifier ) -> SPL_module or null
+
+    function get_module_function_or_null -> SPL_function_AST or null
+        in module_id SPL_identifier
+        in function_id SPL_identifier
+    .
+
+.

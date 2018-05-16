@@ -1,0 +1,155 @@
+factory string_line_iterator type:finite_iterator<string or null>
+
+	java_header
+		import org.pp.ppl_core.reflection.java.PPLObjectType;
+		import org.pp.ppl_core.reflection.introspection.root_software_element.type_factory_service.object_type.java.se_PPLObjectType_constants;
+	end java_header
+
+	java
+		public PPLObjectType get_$element() {
+			return se_PPLObjectType_constants.string;
+		}
+	end java
+
+	attributes private:yes
+		att string string
+		variable att position pos_32
+	.
+
+	function next
+		
+		if a_position ># a_string.size then
+		    return null
+        .
+    
+        const from = position
+        variable to pos_32 or null = null
+        repeat while a_position <= a_string.size
+
+            case value of a_string.get ( position )
+
+                when se_character_constants.carriage_return
+                    position = position + 1
+                    if a_position <= a_string.size
+                        case value of a_string.get ( position )
+                            when se_character_constants.line_feed
+                                position = position + 1
+                            otherwise
+                                do nothing
+                        .
+                    .
+                    exit repeat
+
+                when se_character_constants.line_feed
+                    position = position + 1
+                    exit repeat
+                    
+                otherwise
+                    to = position
+                    position = position + 1
+            .
+        .
+        
+        if to is not null then
+            return object_reference<string or null>.create ( a_string.substring ( from, to ) )
+        else
+            return object_reference<string or null>.create ( null )
+        .
+	.
+
+	creator create ( string ) -> finite_iterator<string or null>
+	
+        this.string = i_string
+        this.position = 1
+        
+        return this
+	.
+
+	tests
+		variable it = create ( "abc" )
+
+        variable ref = it.next
+        verify ref is not null
+        variable s = ref.object
+        verify s is not null
+        verify s =v "abc"
+        
+        ref = it.next
+        verify ref is null
+
+		it = create ( '''abc
+''' )
+
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is not null
+        verify s =v "abc"
+        
+        ref = it.next
+        verify ref is null
+
+		it = create ( '''
+abc
+
+''' )
+
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is null
+
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is not null
+        verify s =v "abc"
+        
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is null
+
+        ref = it.next
+        verify ref is null
+
+		it = create ( '''abc
+12
+
+
+ 3
+''' )
+
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is not null
+        verify s =v "abc"
+        
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is not null
+        verify s =v "12"
+        
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is null
+        
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is null
+        
+        ref = it.next
+        verify ref is not null
+        s = ref.object
+        verify s is not null
+        verify s =v " 3"
+        
+        ref = it.next
+        verify ref is null
+	.
+
+.

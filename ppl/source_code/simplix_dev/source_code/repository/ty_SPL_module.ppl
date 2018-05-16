@@ -1,0 +1,13 @@
+type SPL_module
+
+    att library_path SPL_identifier_path or null
+    att id SPL_identifier
+
+    att source_code_supplier object_supplier<string or null or anticipated_runtime_error>
+
+    variable att AST SPL_module_AST or null
+    
+    function module_path -> SPL_identifier_path
+    
+.
+    

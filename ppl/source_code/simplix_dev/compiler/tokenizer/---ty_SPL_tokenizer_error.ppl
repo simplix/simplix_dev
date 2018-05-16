@@ -1,0 +1,8 @@
+data type SPL_tokenizer_error
+    
+    attributes
+        line pos_32
+        column pos_32
+        message string
+    .
+.

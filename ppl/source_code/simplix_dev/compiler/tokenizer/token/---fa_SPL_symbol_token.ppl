@@ -1,0 +1,20 @@
+factory SPL_symbol_token
+
+    creator create_opening_parenthesis ( line pos_32, column pos_32 ) -> SPL_symbol_token
+    
+        this.value = se_SPL_symbols.opening_parenthesis
+        this.line = i_line
+        this.column = i_column
+        return this
+    .
+
+    creator create_closing_parenthesis ( line pos_32, column pos_32 ) -> SPL_symbol_token
+    
+        this.value = se_SPL_symbols.closing_parenthesis
+        this.line = i_line
+        this.column = i_column
+        return this
+    .
+.
+     
+    

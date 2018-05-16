@@ -1,0 +1,8 @@
+type SPL_code_generator
+
+    function generate_code -> yes_no
+        in repository SPL_repository
+        %existing_directory_input_argument_2<target_code_directory>
+	    in error_handler SPL_coding_error_handler
+    .
+.

@@ -1,0 +1,27 @@
+type SPL_application
+
+    att root_directory directory
+    att start_module_id SPL_identifier default: se_SPL_constants.default_start_module_id
+    
+    function id -> string
+    
+    function source_code_directory -> directory
+    function Java_lib_directory    -> directory
+    function temp_directory        -> directory
+    function run_directory         -> directory
+    
+    function start_source_code_file -> file
+
+    function try_create_app -> anticipated_runtime_error or null
+        in_check: not object_.root_directory.exists
+    .
+
+    function try_compile -> yes_no
+
+    function try_build -> yes_no
+
+    function try_start_and_continue -> OS_process_error or null
+
+    function try_run_and_wait -> signed_integer_32 or OS_process_error
+
+.

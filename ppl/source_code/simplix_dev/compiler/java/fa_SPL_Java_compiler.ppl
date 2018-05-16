@@ -1,0 +1,38 @@
+factory SPL_Java_compiler
+
+    function compile
+
+        if directory_utilities.create_path_or_clean_up_directory ( i_class_files_directory ) as dir_error is not null then
+            i_error_handler.anticipated_runtime_error ( dir_error )
+            return no
+        .
+        
+        const classpath = mutable_string.create
+
+        // add spl_core
+        se_Java_compiler.add_jar_file_to_classpath ( 
+            classpath,
+            file = se_SPL_constants.spl_core_jar_file )
+        
+        if i_Java_lib_directory.exists then
+            se_Java_compiler.add_jar_files_directory_to_classpath (
+                classpath,
+                directory = i_Java_lib_directory )
+        .
+
+        const Java_compiler_error = se_Java_compiler.compile_Java_source_code_directory (
+            java_files_directory,
+            class_files_directory,
+            class_path = classpath.to_string,
+            source_path = null
+            compiler_options = null )
+        if Java_compiler_error is not null then
+            i_error_handler.anticipated_runtime_error ( Java_compiler_error )
+            return no
+        .
+
+        return yes
+    .
+    
+    creator create kind:in_all
+.

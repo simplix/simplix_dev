@@ -1,0 +1,45 @@
+template fa_SPL_instruction_AST_functions
+
+    function start_line = tokens.first.line
+
+    function end_line = tokens.last.line
+    
+    function tokens_as_string_lines
+    
+        const r = mutable_string.create
+        repeat for each token in tokens
+            r.append_line ( token.to_string )
+        .
+        return r.to_string
+    .
+    
+    function source_code
+        
+        const r = multiline_string.create_from_string ( i_whole_source_code ). \
+            sub_lines ( from_line = start_line.to_pos_64, to_line = end_line.to_pos_64 )?. \
+            to_string. \
+            remove_all_CR_or_LF_at_end
+        assert r is not null
+        return r
+    .
+    
+    function trimmed_source_code_with_error_indicator
+    
+        variable r = source_code ( i_whole_source_code )
+        if i_error_token is not null then
+            r = se_SPL_instruction.insert_error_indicator_in_instruction (
+                source_code_instruction = r
+                line = i_error_token.line - start_line + 1
+                column = i_error_token.column
+                error_indicator )
+        .
+        
+        const result = multiline_string.create_from_string ( r ).trim_left_indent?.to_string
+        assert result is not null
+        return result
+    .
+    
+    functions access:private
+    
+    .
+.

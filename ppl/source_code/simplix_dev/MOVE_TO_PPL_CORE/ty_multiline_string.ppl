@@ -1,0 +1,61 @@
+type multiline_string
+
+    functions
+
+        line_stream -> stream<string or null>
+        
+        sub_lines ( from_line pos_64, to_line pos_64 ) -> multiline_string or null
+            in_check: to_line >= from_line
+        .
+        
+        function trim_left_indent -> multiline_string or null
+
+    
+/// TD
+        // count
+        line_count -> pos_64
+        non_blank_line_count -> pos_64
+        non_empty_line_count -> pos_64
+        blank_line_count -> pos_64
+        empty_line_count -> pos_64
+        
+        has_empty_lines -> yes_no
+        has_blank_lines -> yes_no
+        has_empty_or_blank_lines -> yes_no
+        has_non_empty_lines -> yes_no
+        has_non_blank_lines -> yes_no
+        
+        // get
+        
+        get_line ( index pos_64 ) -> string or null
+        get_non_empty_line_or_throw ( index pos_64 ) -> string
+        get_non_blank_line_or_throw ( index pos_64 ) -> string
+
+        first_line -> string or null
+        first_non_empty_line -> string or null
+        first_non_empty_line_or_throw -> string
+        first_non_blank_line -> string or null
+        first_non_blank_line_or_throw -> string
+
+        last_line -> string or null
+        last_non_empty_line -> string or null
+        last_non_empty_line_or_throw -> string
+        last_non_blank_line -> string or null
+        last_non_blank_line_or_throw -> string
+        
+        // stream
+        non_blank_line_stream -> stream<string>
+        non_empty_line_stream -> stream<string>
+        
+        // sub lines
+        sub_lines_from ( from_line pos_64 ) -> multiline_string
+        sub_lines_to ( to_line pos_64 ) -> multiline_string
+        
+        // remove lines
+        remove_lines ( from_line pos_64, to_line pos_64 ) -> multiline_string
+        remove_lines_from ( from_line pos_64 ) -> multiline_string
+        remove_lines_to ( to_line pos_64 ) -> multiline_string
+.///
+    .
+
+.

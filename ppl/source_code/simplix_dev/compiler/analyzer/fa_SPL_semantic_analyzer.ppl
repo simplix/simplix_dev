@@ -1,0 +1,22 @@
+factory SPL_semantic_analyzer
+
+    function analyze_repository
+    
+        const start_module = i_repository.get_module_or_null ( i_start_module_id )
+        if start_module is null then
+            i_error_handler.error ( """Start module '{{i_start_module_id}}' doesn't exist.""" )
+            return no
+        .
+        
+        const start_function = start_module.AST?.functions?.get_or_null ( se_SPL_constants.start_function_id )
+        if start_function is null then
+            i_error_handler.error ( """Module '{{i_start_module_id}}' which is defined as the start module, must contain function '{{se_SPL_constants.start_function_id}}'.""" )
+            return no
+        .
+        
+        return yes
+    .
+
+    creator create kind:in_all
+
+.

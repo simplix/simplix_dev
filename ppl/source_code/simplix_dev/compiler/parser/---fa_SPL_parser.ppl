@@ -1,0 +1,136 @@
+factory SPL_parser
+
+    attributes access:private
+        att instruction_tokenizer SPL_instruction_tokenizer = SPL_instruction_tokenizer.create
+    .
+
+    attributes kind:variable access:private
+    
+        current_library_path SPL_identifier_path or null
+        current_module_id SPL_identifier or null
+        
+        error_handler SPL_coding_error_handler or null
+
+        instruction_iterator finite_iterator_without_nulls<SPL_instruction_AST> or null
+        current_instruction SPL_instruction_AST or null
+        
+        current_token_index positive_32 or null
+        current_token SPL_token or null
+        
+    .
+    
+    function parse_source_code
+
+        a_current_library_path = i_library_path
+        a_current_module_id = i_module_id
+        
+        a_error_handler = i_error_handler
+
+        a_instruction_iterator = instruction_tokenizer.scan_instructions ( source_code )
+        
+        const functions = mutable_map<key:SPL_identifier, value:SPL_function_AST>.create
+        
+        repeat forever
+            next_instruction
+            if a_current_instruction as ci is null then
+                exit repeat
+            .
+            
+            if not require_token ( "function" ) then
+                exit repeat
+            .
+            
+///
+            const id = require_id_token
+            if id is null then
+                exit repeat
+            .
+            
+            next_instruction
+            
+            // TD
+            const instructions list<SPL_instruction_AST> or null = null
+            
+            if not require_end_dot then
+                exit repeat
+            .
+            
+            const function = SPL_function_AST.create ( id, instructions )
+            functions.add ( key = function.id, value = function )
+.///
+        .
+        
+        return functions.make_immutable_or_null
+    .
+    
+    
+    functions access:private
+
+        function next_instruction
+        
+            if a_instruction_iterator as ii is not null then
+                a_current_instruction = ii.next
+            else
+                a_current_instruction = null
+            .
+            
+            if a_current_instruction as ci is not null then
+                a_current_token_index = 1
+                a_current_token = ci.tokens.get ( 1 )
+            else
+                a_current_token_index = null
+                a_current_token = null
+            .
+        .
+        
+        function next_token
+        
+            if a_current_instruction as ci is not null then
+                if a_current_token_index as ti is not null then
+                    if ti <# ci.tokens.size then
+                        const new_token_index = ti + 1
+                        a_current_token_index = new_token_index
+                        a_current_token = ci.tokens.get ( new_token_index )
+                        return
+                    .
+                .
+            .
+            a_current_token_index = null
+            a_current_token = null
+        .
+        
+        function require_token ( string ) -> yes_no
+        
+            if a_current_token as ct is not null then
+                if ct.value =v string then
+                    next_token
+                    return yes
+                .
+            .
+            report_error ( """'{{string}}' required.""" )
+            return no
+        .
+        
+        function report_error ( message string )
+        
+            const module_id = a_current_module_id
+            assert module_id is not null
+            
+            const instruction = "unknown"
+            
+            const handler = a_error_handler
+            assert handler is not null
+            handler.coding_error ( SPL_coding_error.create (
+                library_path = a_current_library_path
+                module_id,
+                instruction, 
+                token = a_current_token
+                message ) ) 
+        .
+    .
+
+
+    creator create kind:in_all
+
+
+.

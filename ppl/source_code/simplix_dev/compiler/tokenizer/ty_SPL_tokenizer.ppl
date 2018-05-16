@@ -1,0 +1,4 @@
+type SPL_tokenizer
+	
+	function tokenize ( source_code string ) -> finite_iterator_without_nulls<SPL_token>
+.

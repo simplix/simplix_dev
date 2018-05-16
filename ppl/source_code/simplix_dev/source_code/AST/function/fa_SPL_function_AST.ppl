@@ -1,0 +1,7 @@
+factory SPL_function_AST
+
+    function to_string = a_id.value
+    
+    creator create kind:in_all
+    
+.

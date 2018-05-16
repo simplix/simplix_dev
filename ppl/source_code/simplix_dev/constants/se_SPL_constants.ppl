@@ -1,0 +1,15 @@
+service SPL_constants
+
+    attributes
+        source_code_directory_name directory_name = directory_name.create ( "src" )
+        source_code_file_extension file_name_extension = file_name_extension.create ( "sim" )
+        ignored_file_prefix string = "---"
+
+        default_start_module_id SPL_identifier = SPL_identifier.create ( "start" )
+        start_function_id SPL_identifier = SPL_identifier.create ( "start" )
+        
+        spl_core_jar_file file = file.parse_or_throw (
+            """{{se_OS_directories.application_home_directory.to_string}}/simplix_core/simplix_core.jar""" )
+
+    .
+.

@@ -1,0 +1,126 @@
+factory SPL_instruction_tokenizer
+
+	attributes access:private
+	    SPL_tokenizer SPL_tokenizer = fa_SPL_tokenizer.create
+	.
+
+    function scan_instructions
+    
+        const token_iterator = a_SPL_tokenizer.tokenize ( i_source_code )
+    
+        return { next_instruction ( token_iterator ) }
+    .
+    
+    functions access:private
+    
+        function next_instruction -> SPL_instruction_AST or null
+            in token_iterator finite_iterator_without_nulls<SPL_token>
+        
+            const tokens = mutable_indexed_list<SPL_token>.create
+            
+            variable previous_token SPL_token or null = null
+            
+            variable open_parenthesis_pending signed_int_32 = 0
+            variable open_square_bracket_pending signed_int_32 = 0
+            
+            // read all tokens up to end of line
+            repeat forever
+                case type of i_token_iterator.next as token
+
+                    when SPL_new_lines_token
+                        if is_line_continued ( open_parenthesis_pending, open_square_bracket_pending, previous_token ) then
+                            previous_token = token
+                            next repeat
+                        else
+                            exit repeat
+                        .
+
+                    when null
+                        exit repeat
+
+                    otherwise
+                    
+                        case type of token
+                            when SPL_symbol_token
+                                case reference of token.value
+                                
+                                    when se_SPL_symbols.opening_square_bracket then
+                                        open_square_bracket_pending = open_square_bracket_pending + 1
+                                    when se_SPL_symbols.closing_square_bracket then
+                                        open_square_bracket_pending = open_square_bracket_pending - 1
+                                   
+                                    when se_SPL_symbols.opening_parenthesis then
+                                        open_parenthesis_pending = open_parenthesis_pending + 1
+                                    when se_SPL_symbols.closing_parenthesis then
+                                        open_parenthesis_pending = open_parenthesis_pending - 1
+                                   
+                                    otherwise
+                                .
+                            otherwise
+                        .
+
+                        if token.value #r se_SPL_symbols.backslash then // ignore line continuation character
+                            tokens.append ( token )
+                        .
+                        
+                        previous_token = token
+                .
+            .
+            
+            if tokens.is_empty then
+                return null
+            else
+                // %we<tokens.to_long_string>
+                return SPL_instruction_AST.create ( tokens.make_immutable )
+            .
+        .
+        
+        function is_line_continued -> yes_no
+            in open_parenthesis_pending signed_integer_32
+            in open_square_bracket_pending signed_integer_32
+            in previous_token SPL_token or null
+            
+            if open_parenthesis_pending ># 0 or \
+                open_square_bracket_pending ># 0 then
+                return yes
+            .
+            
+            if previous_token is not null then
+                if previous_token.value =r se_SPL_symbols.backslash then
+                    return yes
+                .
+            .
+            
+            return no
+        .
+    .
+    
+    creator create kind:in_all
+    
+	tests
+	    const tokenizer = create
+	    const iterator = tokenizer.scan_instructions ( '''const r = "abc"
+	    
+f1(r)''' )
+
+        var instruction = iterator.next
+        verify instruction is not null
+        verify instruction.tokens_as_string_lines =v '''const (1,1)
+r (1,7)
+= (1,9)
+"abc" (1,11)
+'''
+        
+        instruction = iterator.next
+        verify instruction is not null
+        verify instruction.tokens_as_string_lines =v '''f1 (3,1)
+( (3,3)
+r (3,4)
+) (3,5)
+'''
+        
+        instruction = iterator.next
+        verify instruction is null
+    .
+
+.

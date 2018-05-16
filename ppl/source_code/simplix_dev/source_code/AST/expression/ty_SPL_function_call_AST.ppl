@@ -1,0 +1,8 @@
+data type SPL_function_call_AST
+
+    att module_id SPL_id_token or null
+    att function_id SPL_id_token
+    
+    att input list<SPL_expression_AST> or null
+    
+.

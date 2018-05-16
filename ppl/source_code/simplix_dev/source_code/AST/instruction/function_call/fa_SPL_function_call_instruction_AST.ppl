@@ -1,0 +1,7 @@
+factory SPL_function_call_instruction_AST
+
+%fa_SPL_instruction_AST_functions
+
+    creator create kind:in_all
+    
+.

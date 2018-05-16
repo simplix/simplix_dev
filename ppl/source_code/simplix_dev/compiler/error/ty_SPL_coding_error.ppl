@@ -1,0 +1,8 @@
+type SPL_coding_error
+    
+    att library_path SPL_identifier_path or null
+    att module_id SPL_identifier
+    att instruction string
+    att token SPL_token or null
+    att message string
+.

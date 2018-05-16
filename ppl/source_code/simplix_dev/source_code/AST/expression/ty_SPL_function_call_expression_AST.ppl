@@ -1,0 +1,7 @@
+data type SPL_function_call_expression_AST
+
+    inherit SPL_expression_AST
+    
+    att function_call SPL_function_call_AST
+    
+.

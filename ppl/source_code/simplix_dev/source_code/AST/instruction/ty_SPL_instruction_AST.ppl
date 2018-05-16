@@ -1,0 +1,17 @@
+type SPL_instruction_AST
+
+	att tokens indexed_list<child_of: SPL_token>
+    
+    function start_line -> pos_32
+    function end_line -> pos_32
+    
+    function tokens_as_string_lines -> string
+    
+    function source_code ( whole_source_code string ) -> string
+
+    function trimmed_source_code_with_error_indicator -> string
+        in whole_source_code string
+        in error_token SPL_token or null
+        in error_indicator string default: se_SPL_instruction.default_error_indicator
+    .
+.

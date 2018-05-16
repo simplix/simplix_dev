@@ -1,0 +1,112 @@
+factory SPL_application
+
+    function id = a_root_directory.name.value
+
+    function source_code_directory = \
+        a_root_directory.append_child_name ( se_SPL_constants.source_code_directory_name )
+    
+    function Java_lib_directory = a_root_directory.append_child_name ( directory_name.create ( "lib" ) )
+    
+    function temp_directory = a_root_directory.append_child_name ( directory_name.create ( "temp" ) )
+    
+    function run_directory = a_root_directory.append_child_name ( directory_name.create ( "run" ) )
+    
+    function start_source_code_file
+        
+        const file_name = file_name.create ( """{{a_start_module_id}}.{{se_SPL_constants.source_code_file_extension}}""" )
+        return file.create_for_name (
+            directory = source_code_directory.path
+            file_name )
+    .
+
+    function try_create_app
+    
+        const parent_directory = a_root_directory.parent_directory
+        if parent_directory is not null then
+            if not parent_directory.exists then
+                return invalid_data_error<directory>.create (
+                    description = """The application cannot be created because the parent directory '{{parent_directory.to_string}}' doesn't exist."""
+                    data = parent_directory )
+            .
+        .
+        
+        const source_code_directory = source_code_directory()
+        if source_code_directory.try_create_path as create_directory_error is not null then
+            return create_directory_error
+        .
+        
+        return se_text_file_writer.write_to_new_file (
+            string = """function start
+    out.write_line ( "Hello from {{root_directory.name}}." )
+.
+"""
+            file = start_source_code_file )
+    .
+
+    function try_compile
+    
+        const error_handler = default_SPL_coding_error_handler.create
+
+        if not source_code_directory.exists then
+            error_handler.error ( """Source code directory
+            {{source_code_directory.to_string}}
+            doesn't exist.""" ) // TD .trim_indent
+            return no
+        .
+        
+        const compiler = SPL_compiler.create
+        if not compiler.compile_directory (
+            source_code_directory,
+            start_module_id,
+            java_files_directory = temp_java_files_directory,
+            error_handler ) then
+            return no
+        .
+        
+        const Java_compiler = SPL_Java_compiler.create
+        return Java_compiler.compile (
+            java_files_directory = temp_java_files_directory,
+            class_files_directory = temp_class_files_directory,
+            Java_lib_directory,
+            error_handler )
+    .
+
+    function try_build
+    
+        const error_handler = default_SPL_coding_error_handler.create
+        
+        const builder = SPL_builder.create
+        return builder.build_runnable (
+            class_files_directory = temp_class_files_directory
+            Java_lib_directory,
+            run_directory,
+            application_id = id
+            start_module_id,
+            error_handler )
+    .
+
+    function try_start_and_continue
+        
+        return se_SPL_source_code_file_executor.try_start_jar_file_and_continue ( jar_file )
+    .
+    
+    function try_run_and_wait
+        
+        return se_SPL_source_code_file_executor.try_run_jar_file_and_wait ( jar_file )
+    .
+
+    
+    functions access:private
+
+        function temp_java_files_directory -> directory = temp_directory.append_child_name ( directory_name.create ( "java" ) )
+
+        function temp_class_files_directory -> directory = temp_directory.append_child_name ( directory_name.create ( "classes" ) )
+
+        function jar_file -> file = file.create_for_name (
+            directory = run_directory.path
+            file_name = file_name.create ( """{{id}}.jar""" ) ) 
+    .
+    
+    creator create kind:in_all
+
+.

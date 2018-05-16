@@ -1,0 +1,4 @@
+type SPL_symbol_token
+    
+    inherit SPL_token
+.

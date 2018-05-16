@@ -1,0 +1,14 @@
+factory SPL_module
+
+    function module_path
+    
+        if a_library_path is not null then
+            return SPL_identifier_path.create ( """{{a_library_path}}.{{a_id}}""" )
+        else
+            return SPL_identifier_path.create ( a_id.value )
+        .
+    .
+
+    creator create kind:in_all
+    
+.

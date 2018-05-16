@@ -1,0 +1,7 @@
+data type SPL_number_expression_AST
+
+    inherit SPL_expression_AST
+    
+    att token SPL_number_literal_token
+    
+.

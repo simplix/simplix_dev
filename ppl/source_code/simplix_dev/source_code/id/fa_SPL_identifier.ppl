@@ -1,0 +1,30 @@
+factory SPL_identifier
+
+    function is_equal_to = a_value =v i_other.value
+
+    function to_string = a_value
+    
+
+    creator create kind:in_all
+    
+    // TD remove
+    creator create_from_file_name ( file_name ) -> SPL_identifier
+
+        this.value = i_file_name.remove_extension.value
+        return this
+    .
+
+    creator try_create_from_file_name ( file_name ) -> SPL_identifier or invalid_data_error<file_name>
+
+        const id = i_file_name.remove_extension.value
+        try
+            this.value = id
+            return this
+        
+        catch_any error
+            return invalid_data_error<file_name>.create (
+                description = """File name '{{id}}' does not denote a valid identifier. Reason: {{error.description}}"""
+                data = i_file_name )
+        .
+    .
+.

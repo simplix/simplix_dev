@@ -1,0 +1,29 @@
+factory SPL_coding_error
+
+    function to_string
+    
+        const r = mutable_string.create
+
+        r.append_line ( message )
+        
+        r.append ( "module " )
+        if a_library_path is not null then
+            r.append ( """{{a_library_path}}.{{a_module_id}}""" )
+        else
+            r.append ( a_module_id.value )
+        .
+        
+        if a_token is not null then
+            r.append ( """, line {{a_token.line}}, column {{a_token.column}}""" )
+        .
+        
+        r.append_new_line
+        
+        r.append ( instruction )
+
+        return r.to_string
+    .
+
+    creator create kind:in_all
+
+.

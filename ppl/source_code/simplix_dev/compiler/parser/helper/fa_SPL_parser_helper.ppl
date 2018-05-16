@@ -1,0 +1,267 @@
+factory SPL_parser_helper
+
+    attributes access:private
+        att instruction_tokenizer SPL_instruction_tokenizer = SPL_instruction_tokenizer.create
+    .
+
+    attributes kind:variable access:private
+    
+        source_code string or null
+
+        current_library_path SPL_identifier_path or null
+        current_module_id SPL_identifier or null
+        
+        error_handler SPL_coding_error_handler or null
+
+        instruction_iterator finite_iterator_without_nulls<SPL_instruction_AST> or null
+        current_instruction SPL_instruction_AST or null
+        
+        current_token_index positive_32 or null
+        current_token SPL_token or null
+        
+    .
+    
+    function initialize
+    
+        a_source_code = i_source_code
+
+        a_current_library_path = i_library_path
+        a_current_module_id = i_module_id
+        
+        a_error_handler = i_error_handler
+
+        a_instruction_iterator = instruction_tokenizer.scan_instructions ( i_source_code )
+    .
+    
+    
+    // instruction
+    
+    function current_instruction = a_current_instruction
+    
+    function advance_instruction
+    
+        if a_instruction_iterator is not null then
+            a_current_instruction = a_instruction_iterator.next
+        else
+            a_current_instruction = null
+        .
+        
+        if a_current_instruction is not null then
+            a_current_token_index = 1
+            a_current_token = a_current_instruction.tokens.get ( a_current_token_index )
+            check_is_error_token ( a_current_token )
+        else
+            a_current_token_index = null
+            a_current_token = null
+        .
+        
+        return a_current_instruction
+    .
+    
+    function require_end_of_instruction
+        
+        if a_current_token is null then
+            return yes
+        else
+            report_error ( "No more code expected." )
+            return no
+        .
+    .
+    
+    
+    // token
+    
+    function current_token = a_current_token
+    
+    function advance_token
+    
+        if a_current_instruction is not null then
+            if a_current_token_index is not null then
+                if a_current_token_index <# a_current_instruction.tokens.size then
+                    a_current_token_index = a_current_token_index + 1
+                    a_current_token = a_current_instruction.tokens.get ( a_current_token_index )
+                    if not check_is_error_token ( a_current_token ) then
+                        return a_current_token
+                    else
+                        return advance_token
+                    .
+                .
+            .
+        .
+        a_current_token_index = null
+        a_current_token = null
+        return null
+    .
+    
+   function peek_next_token_value
+    
+        if a_current_instruction is not null then
+            if a_current_token_index is not null then
+                const next_index = a_current_token_index + 1
+                if next_index <= a_current_instruction.tokens.size then
+                    return a_current_instruction.tokens.get ( next_index ).value
+                .
+            .
+        .
+        return null
+    .
+    
+    
+    // is
+
+///    
+    function is_current_token_value
+    
+        if a_current_token is null then
+            return no
+        else
+            return a_current_token.value =v i_value
+        .
+    .
+.///
+    
+    function is_on_symbol
+
+        if a_current_token is null then
+            return no
+        .
+
+        return a_current_token.value =r i_string
+    .
+    
+    function is_on_keyword
+
+        if a_current_token is null then
+            return no
+        .
+
+        return a_current_token.value =v i_string
+    .
+    
+    // accept
+    
+    function accept_token_value
+
+        if a_current_token is null then
+            return null
+        .
+
+        if a_current_token.value =v string then
+            const r = a_current_token
+            advance_token
+            return r
+        else
+            return null
+        .
+    .
+    
+    function accept_id_token
+
+        if a_current_token is null then
+            return null
+        .
+
+        case type of a_current_token
+            when SPL_id_token token
+                advance_token
+                return token
+            otherwise
+                return null
+        .
+    .
+    
+    function accept_symbol
+
+        if a_current_token is null then
+            return no
+        .
+
+        if a_current_token.value =r i_string then
+            advance_token
+            return yes
+        else
+            return no
+        .
+    .
+    
+    
+    // require
+    
+    function require_token_value
+    
+        const r = accept_token_value ( i_string )
+        
+        if r is null then
+            report_error ( """'{{string}}' required.""" )
+        .
+        
+        return r
+    .
+    
+    function require_id_token
+
+        const r = accept_id_token
+        
+        if r is null then
+            report_error ( """Identifier required.""" )
+        .
+        
+        return r
+    .
+    
+    function require_symbol
+
+        const r = accept_symbol ( i_string )
+        
+        if not r then
+            report_error ( """'{{string}}' required.""" )
+        .
+        
+        return r
+    .
+    
+    
+    // errors
+    
+    function report_error
+    
+        const module_id = a_current_module_id
+        assert module_id is not null
+        
+        variable instruction string 
+        if a_current_instruction is not null then
+            assert a_source_code is not null
+            instruction = a_current_instruction.trimmed_source_code_with_error_indicator (
+                whole_source_code = a_source_code
+                error_token = a_current_token )
+        else
+            instruction = "unknown instruction"
+        .
+        
+        assert a_error_handler is not null
+        a_error_handler.coding_error ( SPL_coding_error.create (
+            library_path = a_current_library_path
+            module_id,
+            instruction, 
+            token = a_current_token
+            message ) ) 
+    .
+
+    functions access:private
+    
+        function check_is_error_token ( token SPL_token ) -> yes_no
+
+            case type of i_token
+                when SPL_error_token error_token then
+                    report_error ( error_token.error_message )
+                    return yes
+                otherwise
+                    return no
+            .
+        .
+    .
+
+    
+    creator create kind:in_all
+
+.

@@ -1,0 +1,16 @@
+factory SPL_java_token
+
+    function to_string = """{{java_keyword}} ({{line}},{{column}})"""
+    
+    function java_code
+        
+        if a_java_code_end_pos >= java_code_start_pos then
+            return a_value.substring ( from = java_code_start_pos, to = a_java_code_end_pos )
+        else
+            return null
+        .
+    .
+    
+    creator create kind:in_all
+    
+.
